@@ -1,5 +1,5 @@
 from rdflib import Graph, URIRef
-from pyshacl import Shape
+from pyshacl import Shape, ShapesGraph
 from rdflib.term import _XSD_PFX, _RDF_PFX
 
 _EX_PFX = "http://example.com/ex#"
@@ -55,8 +55,10 @@ if __name__ == '__main__':
     URI_path = URIRef(_EX_PFX + "ssn")
     # URI_path = URIRef(_RDF_PFX + "type") # rdf:type
 
-    value_nodes = Shape.value_nodes_from_path(sg, URI_focus, URI_path, dg)
+    #shape = Shape(sg=ShapesGraph(sg), node=URIRef(_EX_PFX + "PersonShape"))
+    #shape.validate(dg, focus=URI_focus)
+
+    value_nodes = Shape.value_nodes_from_path(sg, URI_focus, URI_path, dg, return_paths=True)
     print(value_nodes)
 
-    # print(URI)
     # print(isinstance(URI, URIRef))
