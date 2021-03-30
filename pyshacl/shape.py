@@ -369,7 +369,9 @@ class Shape(object):
     def value_nodes_from_path(cls, sg, focus, path_val, target_graph, recursion=0):
         # Link: https://www.w3.org/TR/shacl/#property-paths
         if isinstance(path_val, URIRef):
-            return set(target_graph.objects(focus, path_val))
+            #return set(target_graph.objects(focus, path_val)) # orginal code (replaced with the following 2 lines)
+            objects = list(target_graph.objects(focus, path_val))
+            return set(map(lambda x: (x, frozenset({(focus, path_val, x)})), objects))
         elif isinstance(path_val, Literal):
             raise ReportableRuntimeError("Values of a property path cannot be a Literal.")
         # At this point, path_val _must_ be a BNode
