@@ -242,17 +242,23 @@ class Validator(object):
         reports = []
         non_conformant = False
 
+        list_of_paths = []
+        _path = None
         for g in named_graphs:
             if advanced:
                 apply_functions(advanced['functions'], g)
                 apply_rules(advanced['rules'], g)
             for s in shapes:
-                _is_conform, _reports = s.validate(g)
+                _is_conform, _reports, _path = s.validate(g, return_path=True)
+                if (_path != None):
+                    list_of_paths.append(_path)
                 non_conformant = non_conformant or (not _is_conform)
                 reports.extend(_reports)
             if advanced:
                 unapply_functions(advanced['functions'], g)
         v_report, v_text = self.create_validation_report(self.shacl_graph, not non_conformant, reports)
+        if (non_conformant == False):
+            print("ALL PATHS OF CONFORMING SUBGRAPH: ", list_of_paths)
         return (not non_conformant), v_report, v_text
 
 

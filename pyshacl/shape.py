@@ -46,7 +46,7 @@ if TYPE_CHECKING:
     from pyshacl.shapes_graph import ShapesGraph
 
 module = sys.modules[__name__]
-
+global_paths_of_shape = []
 
 class Shape(object):
 
@@ -371,8 +371,9 @@ class Shape(object):
         if isinstance(path_val, URIRef):
             #return set(target_graph.objects(focus, path_val)) # orginal code
             if return_paths:
-                objects = list(target_graph.objects(focus, path_val))
-                return set(map(lambda x: (x, frozenset({(focus, path_val, x)})), objects))
+                objects = list(set(target_graph.objects(focus, path_val)))
+                #return set(map(lambda x: (x, frozenset({(focus, path_val, x)})), objects))
+                return list(map(lambda x: {x: [(focus, path_val, x)]}, objects))
             else:
                 return set(target_graph.objects(focus, path_val))
         elif isinstance(path_val, Literal):
@@ -485,12 +486,13 @@ class Shape(object):
         if not isinstance(focus, (tuple, list, set)):
             focus = [focus]
         if not self.is_property_shape:
-            return {f: set((f,)) for f in focus}
+            return {f: set((f,)) for f in focus}, None
         path_val = self.path()
         focus_dict = {}
         for f in focus:
             focus_dict[f] = self.value_nodes_from_path(self.sg, f, path_val, target_graph)
-        return focus_dict
+            entire_path = self.value_nodes_from_path(self.sg, f, path_val, target_graph, return_paths=True)
+        return focus_dict, entire_path
 
     def find_custom_constraints(self):
         applicable_custom_constraints = set()
@@ -520,9 +522,14 @@ class Shape(object):
         ] = None,
         bail_on_error: Optional[bool] = False,
         _evaluation_path: Optional[List] = None,
+        return_path = False,
     ):
         if self.deactivated:
-            return True, []
+            # return True, [] # Original code
+            if (return_path):
+                return True, [], None
+            else:
+                return True, []
         if focus is not None:
             if not isinstance(focus, (tuple, list, set)):
                 focus = [focus]
@@ -531,7 +538,11 @@ class Shape(object):
         if len(focus) < 1:
             # Its possible for shapes to have _no_ focus nodes
             # (they are called in other ways)
-            return True, []
+            # return True, [] # Original code
+            if (return_path):
+                return True, [], None
+            else:
+                return True, []
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -558,7 +569,7 @@ class Shape(object):
             constraint_map = PARAMETER_MAP
         parameters = (p for p, v in self.sg.predicate_objects(self.node) if p in search_parameters)
         reports = []
-        focus_value_nodes = self.value_nodes(target_graph, focus)
+        focus_value_nodes, entire_path = self.value_nodes(target_graph, focus)
         non_conformant = False
         done_constraints = set()
         run_count = 0
@@ -595,4 +606,16 @@ class Shape(object):
             non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
-        return (not non_conformant), reports
+
+        entire_path_formatted = None
+        if (non_conformant == False) and entire_path != None and len(entire_path) > 0:
+            entire_path_formatted = list(map(lambda x: list(x.values()), entire_path))[0]
+            print("Correct path:", entire_path_formatted)
+            global_paths_of_shape.append(entire_path_formatted)
+        # return (not non_conformant), reports # original code
+        if (return_path):
+            temp_paths = global_paths_of_shape[:]
+            global_paths_of_shape.clear()
+            return (not non_conformant), reports, temp_paths
+        else:
+            return (not non_conformant), reports
