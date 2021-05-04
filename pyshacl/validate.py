@@ -243,22 +243,35 @@ class Validator(object):
         non_conformant = False
 
         list_of_paths = []
-        _path = None
+        dict_focus_paths = {}
+        _path_temp = None
+        _focus_path_temp = None
         for g in named_graphs:
             if advanced:
                 apply_functions(advanced['functions'], g)
                 apply_rules(advanced['rules'], g)
             for s in shapes:
-                _is_conform, _reports, _path = s.validate(g, return_path=True)
-                if (_path != None):
-                    list_of_paths.append(_path)
+                _is_conform, _reports, _path_temp, _focus_path_temp = s.validate(g, return_path=True)
+                if (_path_temp != None):
+                    list_of_paths.append(_path_temp)
+                if (_focus_path_temp != None):
+                    for f in _focus_path_temp:
+                        if (_focus_path_temp[f] == False):
+                            if (f in dict_focus_paths): dict_focus_paths.pop(f)
+                        else:
+                            if (f in dict_focus_paths): dict_focus_paths[f].extend(_focus_path_temp[f])
+                            else: dict_focus_paths[f] = _focus_path_temp[f]
+
                 non_conformant = non_conformant or (not _is_conform)
                 reports.extend(_reports)
             if advanced:
                 unapply_functions(advanced['functions'], g)
         v_report, v_text = self.create_validation_report(self.shacl_graph, not non_conformant, reports)
-        if (non_conformant == False):
-            print("ALL PATHS OF CONFORMING SUBGRAPH: ", list_of_paths)
+        #if (non_conformant == False):
+        #print("ALL PATHS OF CONFORMING SUBGRAPH: ", list_of_paths)
+        for f in dict_focus_paths:
+            dict_focus_paths[f] = set(dict_focus_paths[f])
+            print("Path(s) of focus node ", f, ": ", dict_focus_paths[f])
         return (not non_conformant), v_report, v_text
 
 

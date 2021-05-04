@@ -1,27 +1,6 @@
 from pyshacl import validate
 
 shapes_file = '''
-@prefix ex: <http://example.com/ns#> .
-@prefix sh: <http://www.w3.org/ns/shacl#> .
-
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob ;
-  sh:path ex:name ;
-  sh:minCount 1 .
-'''
-shapes_file_format = 'turtle'
-data_file = '''
-@prefix ex: <http://example.com/ns#> .
-
-ex:Alice ex:name "Alice" .
-ex:Bob ex:givenName "Bob"@en .
-'''
-
-data_file_format = 'turtle'
-
-
-"""
-shapes_file = '''
 @prefix dash: <http://datashapes.org/dash#> .
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
@@ -84,7 +63,8 @@ data_file = '''
     }
 }
 '''
-data_file_format = 'json-ld'"""
+data_file_format = 'json-ld'
+
 
 conforms, v_graph, v_text = validate(data_file, shacl_graph=shapes_file,
                                      data_graph_format=data_file_format,
