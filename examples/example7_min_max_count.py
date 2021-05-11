@@ -1,23 +1,33 @@
 from pyshacl import validate
 
-
 shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
-  sh:path ex:name ;
-  sh:minCount 1 .
+ex:SuperShape a sh:NodeShape ;
+  sh:property [
+  sh:path ex:property ;
+  sh:minCount 1 ; ] .
+
+ex:ExampleAndShape a sh:NodeShape ;
+  sh:targetNode ex:ValidInstance, ex:InvalidInstance ;
+  sh:and (
+    ex:SuperShape
+    [
+   	sh:path ex:property ;
+   	sh:maxCount 1 ; ] ) .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
-ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
+ex:ValidInstance ex:property "One" .
+
+# Invalid: more than one property
+ex:InvalidInstance
+  ex:property "One" ;
+  ex:property "Two" .
 '''
 data_file_format = 'turtle'
 

@@ -5,19 +5,22 @@ shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
-  sh:path ex:name ;
-  sh:minCount 1 .
+ex:OrConstraintExampleShape a sh:NodeShape ;
+  sh:targetNode ex:Bob ;
+  sh:or (
+    [
+   	sh:path ex:firstName ;
+   	sh:minCount 1 ; ]
+    [
+   	sh:path ex:givenName ;
+   	sh:minCount 1 ; ] ) .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
-ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
+ex:Bob ex:firstName "Robert" .
 '''
 data_file_format = 'turtle'
 

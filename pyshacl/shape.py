@@ -46,8 +46,8 @@ if TYPE_CHECKING:
     from pyshacl.shapes_graph import ShapesGraph
 
 module = sys.modules[__name__]
-global_paths_of_shape = []
-global_dict_focus_paths = {} # Example element: Bob: ([True, False, True, ...], [path1, path2, ...])
+global_dict_focus_paths = {} # Example element: Bob: [path1, path2, ...] or Bob: False (if
+                            # at least one path from Bob does not conform to the shapes graph)
 
 class Shape(object):
 
@@ -528,8 +528,8 @@ class Shape(object):
     ):
         if self.deactivated:
             # return True, [] # Original code
-            if (return_path):
-                return True, [], None, None
+            if return_path:
+                return True, [], None
             else:
                 return True, []
         if focus is not None:
@@ -541,13 +541,13 @@ class Shape(object):
             # Its possible for shapes to have _no_ focus nodes
             # (they are called in other ways)
             # return True, [] # Original code
-            if (return_path):
-                return True, [], None, None
+            if return_path:
+                return True, [], None
             else:
                 return True, []
         # Add all focus nodes to global variable global_dict_focus_paths
         for fn in focus:
-            if fn not in global_dict_focus_paths:
+            if fn not in global_dict_focus_paths and isinstance(fn, URIRef):
                 global_dict_focus_paths[fn] = []
         if _evaluation_path is None:
             _evaluation_path = []
@@ -576,8 +576,6 @@ class Shape(object):
         parameters = (p for p, v in self.sg.predicate_objects(self.node) if p in search_parameters)
         reports = []
         focus_value_nodes, entire_path = self.value_nodes(target_graph, focus)
-        #print("All focus nodes: ", focus)
-        #print("Focus_value_nodes: ", focus_value_nodes)
         non_conformant = False
         done_constraints = set()
         run_count = 0
@@ -596,19 +594,27 @@ class Shape(object):
                 raise e
             _e_p = _evaluation_path[:]
             _e_p.append(c)
+
+            _is_conform, _r = True, []
+            # Evaluate the focus nodes one by one
             for fvn in focus_value_nodes:
-                if (global_dict_focus_paths[fvn] == False): continue
                 dict_temp = {fvn: focus_value_nodes[fvn]}
                 _is_conform_temp, _r_temp = c.evaluate(target_graph, dict_temp, _e_p)
-                if (_is_conform_temp == False):
+                _is_conform = _is_conform and _is_conform_temp
+                _r.extend(_r_temp)
+
+                if not isinstance(fn, URIRef) or global_dict_focus_paths[fvn] == False or len(focus_value_nodes[fvn]) < 1:
+                    continue
+                # If at least one path of a node is non-conforming, set that focus node to False in the global dict
+                if not _is_conform_temp:
                     global_dict_focus_paths[fvn] = False
                     continue
-                if (entire_path == None): continue
+                if entire_path is None:
+                    continue
                 for p in entire_path:
                     if fvn in p:
                         global_dict_focus_paths[fvn].extend(p[fvn])
 
-            _is_conform, _r = c.evaluate(target_graph, focus_value_nodes, _e_p)
             non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
@@ -627,16 +633,7 @@ class Shape(object):
             reports.extend(_r)
             run_count += 1
 
-        entire_path_formatted = None
-        #if (non_conformant == False) and entire_path != None and len(entire_path) > 0:
-        """if entire_path != None and len(entire_path) > 0:
-            entire_path_formatted = list(map(lambda x: list(x.values()), entire_path))[0]
-            print("Correct path:", entire_path_formatted)
-            global_paths_of_shape.append(entire_path_formatted)"""
-        # return (not non_conformant), reports # original code
-        if (return_path):
-            temp_paths = global_paths_of_shape[:]
-            global_paths_of_shape.clear()
-            return (not non_conformant), reports, temp_paths, global_dict_focus_paths
+        if return_path:
+            return (not non_conformant), reports, global_dict_focus_paths
         else:
             return (not non_conformant), reports

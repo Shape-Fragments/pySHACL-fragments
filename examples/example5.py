@@ -5,19 +5,23 @@ shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
-  sh:path ex:name ;
-  sh:minCount 1 .
+ex:PatternExampleShape
+  a sh:NodeShape ;
+  sh:targetNode ex:Bob, ex:Alice, ex:Carol ;
+  sh:property [
+    sh:path ex:bCode ;
+    sh:pattern "^B" ;	# starts with 'B'
+    sh:flags "i" ;   	# Ignore case
+  ] .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
-ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
+ex:Bob ex:bCode "b101" .
+ex:Alice ex:bCode "B102" .
+ex:Carol ex:bCode "C103" .
 '''
 data_file_format = 'turtle'
 

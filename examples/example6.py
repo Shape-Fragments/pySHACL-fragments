@@ -5,19 +5,26 @@ shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
-  sh:path ex:name ;
-  sh:minCount 1 .
+ex:NewZealandLanguagesShape a sh:NodeShape ;
+  sh:targetNode ex:Mountain, ex:Berg ;
+  sh:property [
+    sh:path ex:prefLabel ;
+    sh:languageIn ( "en" "mi" ) ; ] .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
-ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
+ex:Mountain
+  ex:prefLabel "Mountain"@en ;
+  ex:prefLabel "Hill"@en-NZ ;
+  ex:prefLabel "Maunga"@mi .
+
+ex:Berg
+  ex:prefLabel "Berg" ;
+  ex:prefLabel "Berg"@de ;
+  ex:prefLabel ex:BergLabel .
 '''
 data_file_format = 'turtle'
 
