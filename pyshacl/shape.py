@@ -46,8 +46,14 @@ if TYPE_CHECKING:
     from pyshacl.shapes_graph import ShapesGraph
 
 module = sys.modules[__name__]
-global_dict_focus_paths = {} # Example element: Bob: [path1, path2, ...] or Bob: False (if
-                            # at least one path from Bob does not conform to the shapes graph)
+global_dict_focus_paths = {}
+# global_dict_focus_paths is a global dictionary
+# Keys of dictionary: All distinct focus nodes in data_graph
+# Values of dictionary: All paths for a particular focus node
+# Example element: Bob: [path1, path2, ...] (if all Bob paths conform to shapes_graph)
+# Example element: Bob: False (if >1 Bob path does not conform to shapes graph)
+
+
 
 class Shape(object):
 

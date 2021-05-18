@@ -17,12 +17,13 @@ from .extras import check_extra_installed
 from .pytypes import GraphLike
 from .target import apply_target_types, gather_target_types
 
-
 if owlrl.json_ld_available:
     import rdflib_jsonld  # noqa: F401
 
 from rdflib import BNode, Literal, URIRef
 
+#from .shape import global_dict_focus_paths
+from . import shape
 from .consts import (
     RDF_object,
     RDF_predicate,
@@ -51,7 +52,6 @@ from .rdfutil import (
 from .rdfutil.load import add_baked_in
 from .rules import apply_rules, gather_rules
 from .shapes_graph import ShapesGraph
-
 
 log_handler = logging.StreamHandler(stderr)
 log = logging.getLogger(__name__)
@@ -282,7 +282,11 @@ class Validator(object):
         else:
             print("EMPTY SUBGRAPH: There are NO conforming focus nodes!")
 
-        return (not non_conformant), v_report, v_text
+        #print("LENGTH GLOBAL DICT:", len(shape.global_dict_focus_paths))
+        shape.global_dict_focus_paths.clear()
+        print("GLOBAL DICT CLEARED")
+        #print("LENGTH GLOBAL DICT:", len(shape.global_dict_focus_paths))
+        return (not non_conformant), v_report, v_text, dict_focus_paths
 
 
 # Returns dictionary with only target nodes as keys (+ remove keys with empty values)
@@ -436,7 +440,7 @@ def validate(
                 'logger': log,
             },
         )
-        conforms, report_graph, report_text = validator.run()
+        conforms, report_graph, report_text, dict_paths = validator.run()
     except ValidationFailure as e:
         conforms = False
         report_graph = e
@@ -455,7 +459,7 @@ def validate(
         if not (isinstance(do_serialize_report_graph, str)):
             do_serialize_report_graph = 'turtle'
         report_graph = report_graph.serialize(None, encoding='utf-8', format=do_serialize_report_graph)
-    return conforms, report_graph, report_text
+    return conforms, report_graph, report_text, dict_paths
 
 
 def clean_validation_reports(actual_graph, actual_report, expected_graph, expected_report):

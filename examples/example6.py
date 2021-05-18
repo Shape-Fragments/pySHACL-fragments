@@ -1,6 +1,5 @@
 from pyshacl import validate
 
-
 shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -28,11 +27,33 @@ ex:Berg
 '''
 data_file_format = 'turtle'
 
-conforms, v_graph, v_text = validate(data_file, shacl_graph=shapes_file,
+output_file = '''
+@prefix ex: <http://example.com/ns#> .
+
+ex:Mountain
+  ex:prefLabel "Mountain"@en ;
+  ex:prefLabel "Hill"@en-NZ ;
+  ex:prefLabel "Maunga"@mi .
+'''
+
+"""conforms, v_graph, v_text, dict_paths = validate(data_file, shacl_graph=shapes_file,
                                      data_graph_format=data_file_format,
                                      shacl_graph_format=shapes_file_format,
                                      inference='rdfs', debug=True,
                                      serialize_report_graph=True)
+print([dict_paths[x] for x in dict_paths])
 print(conforms)
 print(v_graph)
-print(v_text)
+print(v_text)"""
+
+
+def return_shapes_file():
+    return shapes_file
+
+
+def return_data_file():
+    return data_file
+
+
+def return_output_file():
+    return output_file

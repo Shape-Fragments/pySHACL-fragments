@@ -1,30 +1,34 @@
+from rdflib import Graph
+from rdflib.compare import isomorphic
+
 from pyshacl import validate
 
 shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:MinCountExampleShape a sh:PropertyShape ;
-  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
-  sh:path ex:name ;
-  sh:minCount 1 .
+ex:NumericRangeExampleShape a sh:NodeShape ;
+  sh:targetNode ex:Bob, ex:Alice, ex:Ted ;
+  sh:property [
+    sh:path ex:age ;
+    sh:minInclusive 0 ;
+    sh:maxInclusive 150 ; ] .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
-ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
+ex:Bob ex:age 23 .
+ex:Alice ex:age 220 .
+ex:Ted ex:age "twenty one" .
 '''
 data_file_format = 'turtle'
 
 output_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Alice ex:name "Alice" .
-ex:Bob ex:name "Bob"@en .
+ex:Bob ex:age 23 .
 '''
 
 
@@ -46,6 +50,13 @@ if __name__ == '__main__':
                                                      shacl_graph_format=shapes_file_format,
                                                      inference='rdfs', debug=True,
                                                      serialize_report_graph=True)
-    print(conforms)
-    print(v_graph)
-    print(v_text)
+    predicted_output = Graph()
+    for focus in dict_paths:
+        for triple in dict_paths[focus]:
+            predicted_output.add(triple)
+
+    for s, p, o in predicted_output:
+        print(s, p, o)
+
+    correct_output = Graph().parse(format="turtle", data=output_file)
+    print("RESULT:", isomorphic(correct_output, predicted_output))
