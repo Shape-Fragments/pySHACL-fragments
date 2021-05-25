@@ -5,7 +5,9 @@ import argparse
 import os
 import sys
 
+from os import path
 from rdflib import Graph
+from rdflib.compare import isomorphic
 
 sys.path.append("..") # This line was added, otherwise ModuleNotFoundError: No module named 'pyshacl'
 from pyshacl import __version__, validate
@@ -136,6 +138,15 @@ parser.add_argument(
     default=False,
     help='Enable data graph validation.',
 )
+parser.add_argument(
+    '-eo',
+    '--expected_output',
+    dest='expected_output',
+    #type=argparse.FileType('rb'),
+    action='store',
+    nargs='?',
+    help='The file containing the expected output.',
+)
 # parser.add_argument('-h', '--help', action="help", help='Show this help text.')
 
 
@@ -177,6 +188,10 @@ def main():
             validator_kwargs['data_graph_format'] = f
     try:
         is_conform, v_graph, v_text, dict_paths = validate(args.data, **validator_kwargs)
+        subgraph = Graph() # This is the conforming subgraph (containing paths of conforming focus nodes)
+        for focus in dict_paths:
+            for triple in dict_paths[focus]:
+                subgraph.add(triple)
         if isinstance(v_graph, BaseException):
             raise v_graph
     except ValidationFailure as vf:
@@ -201,18 +216,23 @@ def main():
         sys.stderr.write("\n\nValidator encountered a Runtime Error. Please report this to the PySHACL issue tracker.")
         sys.exit(2)
 
-    if args.return_subgraphs:
-        g = Graph()
-        for focus in dict_paths:
-            for triple in dict_paths[focus]:
-                g.add(triple)
+    if args.expected_output is not None:
+        with open(args.expected_output) as f:
+            expected_output = f.read()
+        expected_output = Graph().parse(format="turtle", data=expected_output)
+        # Compare the (conforming) subgraph output produced by code (validate function) with the expected output
+        is_isomorphic = isomorphic(expected_output, subgraph)
+        args.output.write("is_isomorphic: ")
+        args.output.write(str(is_isomorphic))
+
+    elif args.return_subgraphs:
         if args.format == 'human':
-            g = g.serialize(format='nt')
+            subgraph = subgraph.serialize(format='nt')
         else:
-            g = g.serialize(format=args.format)
-        if isinstance(g, bytes):
-            g = g.decode('utf-8')
-        args.output.write(g)
+            subgraph = subgraph.serialize(format=args.format)
+        if isinstance(subgraph, bytes):
+            subgraph = subgraph.decode('utf-8')
+        args.output.write(subgraph)
 
     elif args.format == 'human':
         args.output.write(v_text)

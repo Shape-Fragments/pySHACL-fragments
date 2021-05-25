@@ -1,5 +1,4 @@
 from rdflib import Graph
-
 from pyshacl import validate
 
 shapes_file = '''
