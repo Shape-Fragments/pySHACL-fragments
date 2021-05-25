@@ -275,17 +275,14 @@ class Validator(object):
             dict_focus_paths[f] = set(dict_focus_paths[f])
         # Keep only target nodes as keys within the dictionary
         dict_focus_paths = keep_only_target_nodes(dict_focus_paths)
-        # Print the conforming subgraph if non-empty
+        """# Print the conforming subgraph if non-empty
         if len(dict_focus_paths) > 0:
             for f in dict_focus_paths:
                 print("Path(s) of conforming focus node ", f, ": ", dict_focus_paths[f])
         else:
-            print("EMPTY SUBGRAPH: There are NO conforming focus nodes!")
+            print("EMPTY SUBGRAPH: There are NO conforming focus nodes!")"""
 
-        #print("LENGTH GLOBAL DICT:", len(shape.global_dict_focus_paths))
         shape.global_dict_focus_paths.clear()
-        print("GLOBAL DICT CLEARED")
-        #print("LENGTH GLOBAL DICT:", len(shape.global_dict_focus_paths))
         return (not non_conformant), v_report, v_text, dict_focus_paths
 
 

@@ -5,6 +5,9 @@ import argparse
 import os
 import sys
 
+from rdflib import Graph
+
+sys.path.append("..") # This line was added, otherwise ModuleNotFoundError: No module named 'pyshacl'
 from pyshacl import __version__, validate
 from pyshacl.errors import ReportableRuntimeError, ValidationFailure
 
@@ -126,6 +129,13 @@ parser.add_argument(
     help='Send output to a file (defaults to stdout).',
     default=sys.stdout,
 )
+parser.add_argument(
+    '-rs',
+    '--return_subgraphs',
+    dest='return_subgraphs',
+    default=False,
+    help='Enable data graph validation.',
+)
 # parser.add_argument('-h', '--help', action="help", help='Show this help text.')
 
 
@@ -166,7 +176,7 @@ def main():
         if f != "auto":
             validator_kwargs['data_graph_format'] = f
     try:
-        is_conform, v_graph, v_text = validate(args.data, **validator_kwargs)
+        is_conform, v_graph, v_text, dict_paths = validate(args.data, **validator_kwargs)
         if isinstance(v_graph, BaseException):
             raise v_graph
     except ValidationFailure as vf:
@@ -191,7 +201,20 @@ def main():
         sys.stderr.write("\n\nValidator encountered a Runtime Error. Please report this to the PySHACL issue tracker.")
         sys.exit(2)
 
-    if args.format == 'human':
+    if args.return_subgraphs:
+        g = Graph()
+        for focus in dict_paths:
+            for triple in dict_paths[focus]:
+                g.add(triple)
+        if args.format == 'human':
+            g = g.serialize(format='nt')
+        else:
+            g = g.serialize(format=args.format)
+        if isinstance(g, bytes):
+            g = g.decode('utf-8')
+        args.output.write(g)
+
+    elif args.format == 'human':
         args.output.write(v_text)
     else:
         if isinstance(v_graph, bytes):

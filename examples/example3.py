@@ -1,3 +1,5 @@
+from rdflib import Graph
+
 from pyshacl import validate
 
 shapes_file = '''
@@ -49,3 +51,9 @@ if __name__ == '__main__':
     print(conforms)
     print(v_graph)
     print(v_text)
+
+    g = Graph()
+    for focus in dict_paths:
+        for triple in dict_paths[focus]:
+            g.add(triple)
+    g.serialize(destination='output.txt', format='turtle') # Write graph in turtle format to destination

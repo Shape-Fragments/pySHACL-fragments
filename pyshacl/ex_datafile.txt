@@ -1,0 +1,5 @@
+@prefix ex: <http://example.com/ns#> .
+
+ex:Alice ex:name "Alice" .
+ex:Bob ex:name "Bob"@en .
+ex:Jean-Baptiste ex:namee "Jean-Baptiste"@en .
