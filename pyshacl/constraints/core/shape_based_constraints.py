@@ -76,6 +76,7 @@ class PropertyConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
         shape = self.shape
         potentially_recursive = self.recursion_triggers(_evaluation_path)
 
@@ -83,6 +84,7 @@ class PropertyConstraintComponent(ConstraintComponent):
             nonlocal shape, target_graph, focus_value_nodes, _evaluation_path
             _reports = []
             _non_conformant = False
+            _subgraph = {fn: set() for fn in focus_value_nodes}
             prop_shape = shape.get_other_shape(prop_shape)
             if prop_shape in potentially_recursive:
                 warn(ShapeRecursionWarning(_evaluation_path))
@@ -94,16 +96,36 @@ class PropertyConstraintComponent(ConstraintComponent):
 
             for f, value_nodes in focus_value_nodes.items():
                 for v in value_nodes:
-                    _is_conform, _r = prop_shape.validate(target_graph, focus=v, _evaluation_path=_evaluation_path[:])
+                    _is_conform, _r, _value_node_subgraph = prop_shape.validate(target_graph, focus=v, _evaluation_path=_evaluation_path[:])
+                    # sanity check: _value_node_subgraph contains at most subgraphs for v
+                    assert (not _value_node_subgraph) or (len(_value_node_subgraph) == 1 and v in _value_node_subgraph)
+                    # add the neighborhoods of conforming value nodes to the neighborhood of f
+                    # and delete focus nodes from the subgraph output that have non-conforming value nodes:
+                    if _is_conform and f in _subgraph and v in _value_node_subgraph:
+                        _subgraph[f].update(_value_node_subgraph[v])
+                    else:
+                        _subgraph.pop(f)
                     _non_conformant = _non_conformant or (not _is_conform)
                     _reports.extend(_r)
-            return _non_conformant, _reports
+            return _non_conformant, _reports, _subgraph
 
         for p_shape in self.property_shapes:
-            _nc, _r = _evaluate_property_shape(p_shape)
+            _nc, _r, _sg = _evaluate_property_shape(p_shape)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # _sg will have a key for each focus node that satisfies p_shape
+            # so if a focus node is not present, it should be removed from subgraph
+            # if a focus node is present, the constraint's neighborhood (_sg[fn]) should
+            # be added to the shape's neighborhood (subgraph[fn])
+            to_delete = set()
+            for fn in subgraph:
+                if fn not in _sg:
+                    to_delete.add(fn)
+                else:
+                    subgraph[fn].update(_sg[fn])
+            for fn in to_delete:
+                subgraph.pop(fn)
+        return (not non_conformant), reports, subgraph
 
 
 class NodeConstraintComponent(ConstraintComponent):
@@ -283,6 +305,7 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in focus_value_nodes}
         shape = self.shape
         potentially_recursive = self.recursion_triggers(_evaluation_path)
 
@@ -290,6 +313,7 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
             nonlocal self, shape, target_graph, focus_value_nodes, _evaluation_path
             _reports = []
             _non_conformant = False
+            _subgraphs = {f: set() for f in focus_value_nodes}
             other_shape = shape.get_other_shape(_v_shape)
             if other_shape in potentially_recursive:
                 warn(ShapeRecursionWarning(_evaluation_path))
@@ -317,10 +341,16 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
                 number_conforms = 0
                 for v in value_nodes:
                     try:
-                        _is_conform, _r = other_shape.validate(
+                        _is_conform, _r, _sg = other_shape.validate(
                             target_graph, focus=v, _evaluation_path=_evaluation_path[:]
                         )
                         if _is_conform:
+                            # if v conforms to the qualified value shape,
+                            # add the path from f to v to f's neighborhood:
+                            _subgraphs[f].update(focus_value_nodes[f][v])
+                            # ...and add the neighborhood of v and the qualified shape
+                            _subgraphs[f].update(_sg[v])
+
                             _conforms_to_sibling = False
                             for sibling_shape in sibling_shapes:
                                 _c2, _r = sibling_shape.validate(
@@ -332,21 +362,36 @@ class QualifiedValueShapeConstraintComponent(ConstraintComponent):
                     except ValidationFailure as v:
                         raise v
                 if self.max_count is not None and number_conforms > self.max_count:
+                    # f is non-conformant, meaning it should not be a key in _subgraphs
+                    _subgraphs.pop(f)
+
                     _non_conformant = True
                     _r = self.make_v_result(
                         target_graph, f, constraint_component=SH_QualifiedMaxCountConstraintComponent
                     )
                     _reports.append(_r)
                 if self.min_count is not None and number_conforms < self.min_count:
+                    # f is non-conformant, meaning it should not be a key in _subgraphs
+                    _subgraphs.pop(f)
+
                     _non_conformant = True
                     _r = self.make_v_result(
                         target_graph, f, constraint_component=SH_QualifiedMinCountConstraintComponent
                     )
                     _reports.append(_r)
-            return _non_conformant, _reports
+            return _non_conformant, _reports, _subgraphs
 
         for v_shape in self.value_shapes:
-            _nc, _r = _evaluate_value_shape(v_shape)
+            _nc, _r, _sg = _evaluate_value_shape(v_shape)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # keep only focus nodes which satisfy *all* qualified value shapes:
+            to_delete = set()
+            for f in subgraphs:
+                if f not in _sg:
+                    to_delete.add(f)
+                else:
+                    subgraphs[f].update(_sg[f])
+            for f in to_delete:
+                subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs

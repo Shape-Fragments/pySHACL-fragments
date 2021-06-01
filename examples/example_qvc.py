@@ -1,38 +1,46 @@
 from pyshacl import validate
 
-
 shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:OrConstraintExampleShape a sh:NodeShape ;
-  sh:targetNode ex:Bob, ex:Alice, ex:Carol ;
-  sh:or (
-    [
-   	sh:path ex:firstName ;
-   	sh:minCount 1 ; ]
-    [
-   	sh:path ex:givenName ;
-   	sh:minCount 1 ; ] ) .
+ex:QualifiedValueShapeExampleShape
+  a sh:NodeShape ;
+  sh:targetNode ex:QualifiedValueShapeExampleValidResource ;
+  sh:property [
+    sh:path ex:parent ;
+    sh:qualifiedValueShape [
+      sh:path ex:gender ;
+      sh:hasValue ex:female ;
+    ] ;
+    sh:qualifiedMinCount 1 ;
+  ] .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
-ex:Alice ex:lastName "Alice" .
-ex:Carol ex:givenName "Carol" .
+ex:QualifiedValueShapeExampleValidResource
+  ex:parent ex:John ;
+  ex:parent ex:Jane .
+
+ex:John
+  ex:gender ex:male .
+
+ex:Jane
+  ex:gender ex:female .
 '''
 data_file_format = 'turtle'
 
 output_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
-ex:Carol ex:givenName "Carol" .
+ex:QualifiedValueShapeExampleValidResource
+  ex:parent ex:Jane .
+
+ex:Jane
+  ex:gender ex:female .
 '''
 
 

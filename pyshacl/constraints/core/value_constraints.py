@@ -91,15 +91,26 @@ class ClassConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in focus_value_nodes}
         for c in self.class_rules:
-            _n, _r = self._evaluate_class_rules(target_graph, focus_value_nodes, c)
+            _n, _r, _sg = self._evaluate_class_rules(target_graph, focus_value_nodes, c)
             non_conformant = non_conformant or _n
             reports.extend(_r)
-        return (not non_conformant), reports
+            # keep only focus nodes which satisfy *all* class constraints:
+            to_delete = set()
+            for f in subgraphs:
+                if f not in _sg:
+                    to_delete.add(f)
+                else:
+                    subgraphs[f].update(_sg[f])
+            for f in to_delete:
+                subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs
 
     def _evaluate_class_rules(self, target_graph, f_v_dict, class_rule):
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in f_v_dict}
         for f, value_nodes in f_v_dict.items():
             for v in value_nodes:
                 found = False
@@ -113,19 +124,23 @@ class ClassConstraintComponent(ConstraintComponent):
                     for ctype in iter(objs):
                         if ctype == class_rule:
                             found = True
+                            subgraphs[f].add((v, RDF_type, ctype))
                             break
                         # Note, this only ones _one_ level of subclass traversing.
                         # For more levels, the whole target graph should be put through
                         # a RDFS reasoning engine.
                         subclasses = target_graph.objects(ctype, RDFS_subClassOf)
                         if class_rule in iter(subclasses):
+                            subgraphs[f].add((v, RDF_type, ctype))
+                            subgraphs[f].add((ctype, RDFS_subClassOf, class_rule))
                             found = True
                             break
                 if not found:
+                    subgraphs.pop(f)
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+        return non_conformant, reports, subgraphs
 
 
 class DatatypeConstraintComponent(ConstraintComponent):
@@ -176,6 +191,7 @@ class DatatypeConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {fn: set() for fn in focus_value_nodes}
         dtype_rule = self.datatype_rule
         for f, value_nodes in focus_value_nodes.items():
             for v in value_nodes:
@@ -198,7 +214,8 @@ class DatatypeConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return (not non_conformant), reports
+                    subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs
 
     def _assert_actual_datatype(self, value_node, datatype_rule):
         value = value_node.value
@@ -270,6 +287,7 @@ class NodeKindConstraintComponent(ConstraintComponent):
         n_rule = self.nodekind_rule
         reports = []
         non_conformant = False
+        subgraphs = {fn: set() for fn in focus_value_nodes}
         for f, value_nodes in focus_value_nodes.items():
             for v in value_nodes:
                 match = False
@@ -286,7 +304,8 @@ class NodeKindConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return (not non_conformant), reports
+                    subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs
 
     def _evaluate_nodekind_rules(self, target_graph, f_v_pairs, nodekind_rule):
         reports = []

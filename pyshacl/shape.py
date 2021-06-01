@@ -41,22 +41,13 @@ from .errors import ConstraintLoadError, ConstraintLoadWarning, ReportableRuntim
 from .helper import get_query_helper_cls
 from .pytypes import GraphLike
 
-
 if TYPE_CHECKING:
     from pyshacl.shapes_graph import ShapesGraph
 
 module = sys.modules[__name__]
-global_dict_focus_paths = {}
-# global_dict_focus_paths is a global dictionary
-# Keys of dictionary: All distinct focus nodes in data_graph
-# Values of dictionary: All paths for a particular focus node
-# Example element: Bob: [path1, path2, ...] (if all Bob paths conform to shapes_graph)
-# Example element: Bob: False (if >1 Bob path does not conform to shapes graph)
-
 
 
 class Shape(object):
-
     __slots__ = (
         'logger',
         'sg',
@@ -321,33 +312,41 @@ class Shape(object):
             advanced_targets = self.advanced_target()
         else:
             advanced_targets = False
-        found_node_targets = set()
+        found_node_targets = {}
         # Just add _all_ target_nodes to the set,
         # they don't need to actually exist in the graph
-        found_node_targets.update(iter(target_nodes))
+        for target_node in target_nodes:
+            found_node_targets[target_node] = set()
         target_classes = set(target_classes)
         target_classes.update(set(implicit_classes))
-        found_target_instances = set()
         for tc in target_classes:
-            s = data_graph.subjects(RDF_type, tc)
-            found_target_instances.update(s)
-            subc = data_graph.subjects(RDFS_subClassOf, tc)
-            for subclass in iter(subc):
+            for instance in data_graph.subjects(RDF_type, tc):
+                if instance in found_node_targets:
+                    found_node_targets[instance].add((instance, RDF_type, tc))
+                else:
+                    found_node_targets[instance] = {(instance, RDF_type, tc)}
+            for subclass in data_graph.subjects(RDFS_subClassOf, tc):
                 if subclass == tc:
                     continue
-                s1 = data_graph.subjects(RDF_type, subclass)
-                found_target_instances.update(s1)
-        found_node_targets.update(found_target_instances)
-        found_target_subject_of = set()
+                for instance in data_graph.subjects(RDF_type, subclass):
+                    if instance in found_node_targets:
+                        found_node_targets[instance].add((instance, RDF_type, subclass),
+                                                         (subclass, RDFS_subClassOf, tc))
+                    else:
+                        found_node_targets[instance] = {(instance, RDF_type, subclass),
+                                                        (subclass, RDFS_subClassOf, tc)}
         for s_of in target_subjects_of:
-            subs = {s for s, o in data_graph.subject_objects(s_of)}
-            found_target_subject_of.update(subs)
-        found_node_targets.update(found_target_subject_of)
-        found_target_object_of = set()
+            for sub, obj in {s for s, o in data_graph.subject_objects(s_of)}:
+                if sub in found_node_targets:
+                    found_node_targets[sub].add((sub, s_of, obj))
+                else:
+                    found_node_targets[sub] = {(sub, s_of, obj)}
         for o_of in target_objects_of:
-            objs = {o for s, o in data_graph.subject_objects(o_of)}
-            found_target_object_of.update(objs)
-        found_node_targets.update(found_target_object_of)
+            for sub, obj in {s for s, o in data_graph.subject_objects(o_of)}:
+                if obj in found_node_targets:
+                    found_node_targets[obj].add((sub, o_of, obj))
+                else:
+                    found_node_targets[obj] = {(sub, o_of, obj)}
         if advanced_targets:
             for at_node, at in advanced_targets.items():
                 if at['type'] == SH_SPARQLTarget:
@@ -373,18 +372,21 @@ class Shape(object):
         return found_node_targets
 
     @classmethod
-    def value_nodes_from_path(cls, sg, focus, path_val, target_graph, recursion=0, return_paths=False):
+    def value_nodes_from_path(cls, sg, focus, path_val, target_graph, recursion=0):
         # Link: https://www.w3.org/TR/shacl/#property-paths
         if isinstance(path_val, URIRef):
-            #return set(target_graph.objects(focus, path_val)) # orginal code
-            if return_paths:
-                objects = list(set(target_graph.objects(focus, path_val)))
-                #return set(map(lambda x: (x, frozenset({(focus, path_val, x)})), objects))
-                return list(map(lambda x: {focus: [(focus, path_val, x)]}, objects))
-            else:
-                return set(target_graph.objects(focus, path_val))
+            # replaced by following if:
+            # set of reachable nodes
+            reachable_nodes = set(target_graph.objects(focus, path_val))
+            # for each reachable node, a triple
+            paths = {reachable: [(focus, path_val, reachable)] for reachable in reachable_nodes}
+            return reachable_nodes, paths
         elif isinstance(path_val, Literal):
             raise ReportableRuntimeError("Values of a property path cannot be a Literal.")
+
+        # returning paths is so far only implemented for simple paths
+        raise NotImplementedError("Returning paths is so far only implemented for simple paths")
+
         # At this point, path_val _must_ be a BNode
         # TODO, the path_val BNode must be value of exactly one sh:path subject in the SG.
         if recursion >= 10:
@@ -490,17 +492,23 @@ class Shape(object):
         :param focus:
         :return:
         """
-        if not isinstance(focus, (tuple, list, set)):
+        if not isinstance(focus, (tuple, list, set, dict)):
             focus = [focus]
         if not self.is_property_shape:
-            return {f: set((f,)) for f in focus}, None
+            return {f: {f: set()} for f in focus}
         path_val = self.path()
         focus_dict = {}
-        entire_paths = []
+        paths_dict = {}
         for f in focus:
-            focus_dict[f] = self.value_nodes_from_path(self.sg, f, path_val, target_graph)
-            entire_paths.extend(self.value_nodes_from_path(self.sg, f, path_val, target_graph, return_paths=True))
-        return focus_dict, entire_paths
+            reachable_nodes, paths = self.value_nodes_from_path(self.sg, f, path_val, target_graph)
+            focus_dict[f] = reachable_nodes
+            # value_nodes_from_paths returns for each reachable node a list of triples that form the path the
+            # node is reached on. In the remainder of the code however, a set of triples on those paths is expected
+            # So next lines group those lists into sets:
+            paths_dict[f] = {reachable: set() for reachable in reachable_nodes}
+            for reachable in reachable_nodes:
+                paths_dict[f][reachable].update({triple for triple in paths[reachable]})
+        return paths_dict
 
     def find_custom_constraints(self):
         applicable_custom_constraints = set()
@@ -530,31 +538,22 @@ class Shape(object):
         ] = None,
         bail_on_error: Optional[bool] = False,
         _evaluation_path: Optional[List] = None,
-        return_path = False,
     ):
+        subgraphs = {}
         if self.deactivated:
-            # return True, [] # Original code
-            if return_path:
-                return True, [], None
-            else:
-                return True, []
+            return True, [], {}
         if focus is not None:
             if not isinstance(focus, (tuple, list, set)):
                 focus = [focus]
+            subgraphs = {fn: set() for fn in focus}
         else:
             focus = self.focus_nodes(target_graph)
+            subgraphs = focus
         if len(focus) < 1:
             # Its possible for shapes to have _no_ focus nodes
             # (they are called in other ways)
-            # return True, [] # Original code
-            if return_path:
-                return True, [], None
-            else:
-                return True, []
-        # Add all focus nodes to global variable global_dict_focus_paths
-        for fn in focus:
-            if fn not in global_dict_focus_paths and isinstance(fn, URIRef):
-                global_dict_focus_paths[fn] = []
+            return True, [], {}
+
         if _evaluation_path is None:
             _evaluation_path = []
         elif len(_evaluation_path) >= 30:
@@ -581,9 +580,11 @@ class Shape(object):
             constraint_map = PARAMETER_MAP
         parameters = (p for p, v in self.sg.predicate_objects(self.node) if p in search_parameters)
         reports = []
-        focus_value_nodes, entire_path = self.value_nodes(target_graph, focus)
+        focus_value_nodes = self.value_nodes(target_graph, focus)
+
         non_conformant = False
         done_constraints = set()
+        has_forall_constraint = False
         run_count = 0
         _evaluation_path.append(self)
         constraint_components = [constraint_map[p] for p in iter(parameters)]
@@ -601,26 +602,24 @@ class Shape(object):
             _e_p = _evaluation_path[:]
             _e_p.append(c)
 
-            _is_conform, _r = True, []
-            # Evaluate the focus nodes one by one
-            for fvn in focus_value_nodes:
-                dict_temp = {fvn: focus_value_nodes[fvn]}
-                _is_conform_temp, _r_temp = c.evaluate(target_graph, dict_temp, _e_p)
-                _is_conform = _is_conform and _is_conform_temp
-                _r.extend(_r_temp)
+            # keep flag for case where there is at least one "for all" constraint (see end of this function)
+            # TODO hasvalue does have non-forall semantics as well
+            if not type(c).__name__ == "QualifiedValueShapeConstraintComponent":
+                has_forall_constraint = True
 
-                if not isinstance(fn, URIRef) or global_dict_focus_paths[fvn] == False or len(focus_value_nodes[fvn]) < 1:
-                    continue
-                # If at least one path of a node is non-conforming, set that focus node to False in the global dict
-                if not _is_conform_temp:
-                    global_dict_focus_paths[fvn] = False
-                    continue
-                if entire_path is None:
-                    continue
-                for p in entire_path:
-                    if fvn in p:
-                        global_dict_focus_paths[fvn].extend(p[fvn])
-
+            _is_conform, _r, _subgraphs = c.evaluate(target_graph, focus_value_nodes, _e_p)
+            # _subgraphs will have a key for each focus node that satisfies c
+            # so if a focus node is not present, it should be removed from the shape's subgraphs
+            # if a focus node is present, c's neighborhood (_subgraphs[fn]) should
+            # be added to the shape's neighborhood (subgraphs[fn])
+            to_delete = set()
+            for fn in subgraphs:
+                if fn not in _subgraphs:
+                    to_delete.add(fn)
+                else:
+                    subgraphs[fn].update(_subgraphs[fn])
+            for fn in to_delete:
+                subgraphs.pop(fn)
             non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
@@ -639,7 +638,15 @@ class Shape(object):
             reports.extend(_r)
             run_count += 1
 
-        if return_path:
-            return (not non_conformant), reports, global_dict_focus_paths
-        else:
-            return (not non_conformant), reports
+        # if a (property) shape has a constraint that should hold *for all* value nodes,
+        # i.e., any other constraint than a qualified value constraint,
+        # *all* paths matching sh:path and starting in a satisfying focus node
+        # belong on that focus node's neighborhood
+        # (this is different than if there are only qualified value constraints:
+        # in that case, only paths starting in the focus node, matching sh:path, and ending in a correct
+        # value node belong in the focus node's neighborhood, and this is done in c.evaluate())
+        if has_forall_constraint:
+            for fn in subgraphs:
+                for vn in focus_value_nodes[fn]:
+                    subgraphs[fn].update({triple for triple in focus_value_nodes[fn][vn]})
+        return (not non_conformant), reports, subgraphs

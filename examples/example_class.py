@@ -1,38 +1,32 @@
 from pyshacl import validate
 
-
 shapes_file = '''
 @prefix ex: <http://example.com/ns#> .
 @prefix sh: <http://www.w3.org/ns/shacl#> .
 
-ex:OrConstraintExampleShape a sh:NodeShape ;
+ex:ClassExampleShape
+  a sh:NodeShape ;
   sh:targetNode ex:Bob, ex:Alice, ex:Carol ;
-  sh:or (
-    [
-   	sh:path ex:firstName ;
-   	sh:minCount 1 ; ]
-    [
-   	sh:path ex:givenName ;
-   	sh:minCount 1 ; ] ) .
+  sh:property [
+    sh:path ex:address ;
+    sh:class ex:PostalAddress ;
+  ] .
 '''
 shapes_file_format = 'turtle'
 
 data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
-ex:Alice ex:lastName "Alice" .
-ex:Carol ex:givenName "Carol" .
+ex:Alice a ex:Person .
+ex:Bob ex:address [ a ex:PostalAddress ; ex:city ex:Berlin ] .
+ex:Carol ex:address [ ex:city ex:Cairo ] .
 '''
 data_file_format = 'turtle'
 
 output_file = '''
 @prefix ex: <http://example.com/ns#> .
 
-ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
-ex:Carol ex:givenName "Carol" .
+ex:Bob ex:address [ a ex:PostalAddress ] .
 '''
 
 

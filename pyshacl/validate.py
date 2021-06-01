@@ -22,7 +22,6 @@ if owlrl.json_ld_available:
 
 from rdflib import BNode, Literal, URIRef
 
-#from .shape import global_dict_focus_paths
 from . import shape
 from .consts import (
     RDF_object,
@@ -241,69 +240,24 @@ class Validator(object):
             named_graphs = [the_target_graph]
         reports = []
         non_conformant = False
+        subgraph = set()
 
-        dict_focus_paths = {}
-        _focus_path_temp = None
         for g in named_graphs:
             if advanced:
                 apply_functions(advanced['functions'], g)
                 apply_rules(advanced['rules'], g)
             for s in shapes:
-                _is_conform, _reports, _focus_path_temp = s.validate(g, return_path=True)
-                # Iterate over all focus nodes and update them according to the new shape:
-                # If a non-conforming path is received, then delete that focus node from dict
-                # If a conforming path is received, then add the path to corresponding focus node in the dict
-                if _focus_path_temp is not None:
-                    for f in _focus_path_temp:
-                        if _focus_path_temp[f] == False:
-                            if f in dict_focus_paths:
-                                dict_focus_paths.pop(f)
-                        else:
-                            if f in dict_focus_paths:
-                                dict_focus_paths[f].extend(_focus_path_temp[f])
-                            else:
-                                dict_focus_paths[f] = _focus_path_temp[f]
-
+                _is_conform, _reports, _subgraph = s.validate(g)
+                # _subgraphs will contain neighborhoods for each conforming focus node
+                # we will gather these neighborhoods in subgraph and later return them:
+                for fn in _subgraph:
+                    subgraph.update(_subgraph[fn])
                 non_conformant = non_conformant or (not _is_conform)
                 reports.extend(_reports)
             if advanced:
                 unapply_functions(advanced['functions'], g)
         v_report, v_text = self.create_validation_report(self.shacl_graph, not non_conformant, reports)
-
-        # Convert all list of paths to sets to avoid duplicate paths
-        for f in dict_focus_paths:
-            dict_focus_paths[f] = set(dict_focus_paths[f])
-        # Keep only target nodes as keys within the dictionary
-        dict_focus_paths = keep_only_target_nodes(dict_focus_paths)
-        """# Print the conforming subgraph if non-empty
-        if len(dict_focus_paths) > 0:
-            for f in dict_focus_paths:
-                print("Path(s) of conforming focus node ", f, ": ", dict_focus_paths[f])
-        else:
-            print("EMPTY SUBGRAPH: There are NO conforming focus nodes!")"""
-
-        shape.global_dict_focus_paths.clear()
-        return (not non_conformant), v_report, v_text, dict_focus_paths
-
-
-# Returns dictionary with only target nodes as keys (+ remove keys with empty values)
-def keep_only_target_nodes(dict):
-    temp_dic = {}
-    for f in dict:
-        temp_dic[f] = []
-    for f in dict:
-        for path in dict[f]:
-            if path[2] in dict:
-                temp_dic[f].append(path[2])
-    for node in temp_dic:
-        for node_to_add in temp_dic[node]:
-            dict[node].update(dict.pop(node_to_add))
-    # Remove keys with empty values from dictionary
-    dict_ret = dict.copy()
-    for node in dict:
-        if len(dict[node]) < 1:
-            dict_ret.pop(node)
-    return dict_ret
+        return (not non_conformant), v_report, v_text, subgraph
 
 
 def assign_baked_in():
@@ -437,7 +391,7 @@ def validate(
                 'logger': log,
             },
         )
-        conforms, report_graph, report_text, dict_paths = validator.run()
+        conforms, report_graph, report_text, subgraph = validator.run()
     except ValidationFailure as e:
         conforms = False
         report_graph = e
@@ -456,7 +410,7 @@ def validate(
         if not (isinstance(do_serialize_report_graph, str)):
             do_serialize_report_graph = 'turtle'
         report_graph = report_graph.serialize(None, encoding='utf-8', format=do_serialize_report_graph)
-    return conforms, report_graph, report_text, dict_paths
+    return conforms, report_graph, report_text, subgraph
 
 
 def clean_validation_reports(actual_graph, actual_report, expected_graph, expected_report):

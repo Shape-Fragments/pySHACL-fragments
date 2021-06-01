@@ -242,21 +242,33 @@ class HasValueConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in focus_value_nodes}
 
         for hv in iter(self.has_value_set):
-            _nc, _r = self._evaluate_has_value(target_graph, hv, focus_value_nodes)
+            _nc, _r, _sg = self._evaluate_has_value(target_graph, hv, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # keep only focus nodes which satisfy *all* has value constraints:
+            to_delete = set()
+            for f in subgraphs:
+                if f not in _sg:
+                    to_delete.add(f)
+                else:
+                    subgraphs[f].update(_sg[f])
+            for f in to_delete:
+                subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs
 
     def _evaluate_has_value(self, target_graph, hv, f_v_dict):
         reports = []
         non_conformant = False
+        subgraphs = {}
         for f, value_nodes in f_v_dict.items():
             conformant = False
             for v_node in value_nodes:
                 if v_node == hv:
                     conformant = True
+                    subgraphs[f] = set()
                     break
             if not conformant:
                 non_conformant = True
@@ -268,4 +280,4 @@ class HasValueConstraintComponent(ConstraintComponent):
                 # else:
                 rept = self.make_v_result(target_graph, f, value_node=None)
                 reports.append(rept)
-        return non_conformant, reports
+        return non_conformant, reports, subgraphs
