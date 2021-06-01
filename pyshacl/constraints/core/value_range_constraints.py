@@ -71,16 +71,20 @@ class MinExclusiveConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
 
         for m_val in self.min_vals:
-            _nc, _r = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
+            _nc, _r, _nonconforming_focus_nodes = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            for fn in _nonconforming_focus_nodes:
+                subgraph.pop(fn)
+        return (not non_conformant), reports, subgraph
 
     def _evaluate_min_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        non_conforming_focus_nodes = set()
         assert isinstance(m_val, rdflib.Literal)
         min_is_string = isinstance(m_val.value, str)
         for f, value_nodes in f_v_dict.items():
@@ -111,7 +115,8 @@ class MinExclusiveConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    non_conforming_focus_nodes.add(f)
+        return non_conformant, reports, non_conforming_focus_nodes
 
 
 class MinInclusiveConstraintComponent(ConstraintComponent):
@@ -160,16 +165,20 @@ class MinInclusiveConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
 
         for m_val in self.min_vals:
-            _nc, _r = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
+            _nc, _r, _nonconforming_focus_nodes = self._evaluate_min_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            for fn in _nonconforming_focus_nodes:
+                subgraph.pop(fn)
+        return (not non_conformant), reports, subgraph
 
     def _evaluate_min_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        non_conforming_focus_nodes = set()
         assert isinstance(m_val, rdflib.Literal)
         min_is_string = isinstance(m_val.value, str)
         for f, value_nodes in f_v_dict.items():
@@ -200,7 +209,8 @@ class MinInclusiveConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    non_conforming_focus_nodes.add(f)
+        return non_conformant, reports, non_conforming_focus_nodes
 
 
 class MaxExclusiveConstraintComponent(ConstraintComponent):
@@ -249,16 +259,20 @@ class MaxExclusiveConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
 
         for m_val in self.max_vals:
-            _nc, _r = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
+            _nc, _r, _nonconforming_focus_nodes = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            for fn in _nonconforming_focus_nodes:
+                subgraph.pop(fn)
+        return (not non_conformant), reports, subgraph
 
     def _evaluate_max_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        non_conforming_focus_nodes = set()
         assert isinstance(m_val, rdflib.Literal)
         max_is_string = isinstance(m_val.value, str)
         for f, value_nodes in f_v_dict.items():
@@ -289,7 +303,8 @@ class MaxExclusiveConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    non_conforming_focus_nodes.add(f)
+        return non_conformant, reports, non_conforming_focus_nodes
 
 
 class MaxInclusiveConstraintComponent(ConstraintComponent):
@@ -338,16 +353,20 @@ class MaxInclusiveConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
 
         for m_val in self.max_vals:
-            _nc, _r = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
+            _nc, _r, _nonconforming_focus_nodes = self._evaluate_max_rule(m_val, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            for fn in _nonconforming_focus_nodes:
+                subgraph.pop(fn)
+        return (not non_conformant), reports, subgraph
 
     def _evaluate_max_rule(self, m_val, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        non_conforming_focus_nodes = set()
         assert isinstance(m_val, rdflib.Literal)
         max_is_string = isinstance(m_val.value, str)
         for f, value_nodes in f_v_dict.items():
@@ -378,4 +397,5 @@ class MaxInclusiveConstraintComponent(ConstraintComponent):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    non_conforming_focus_nodes.add(f)
+        return non_conformant, reports, non_conforming_focus_nodes

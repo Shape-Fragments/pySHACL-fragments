@@ -251,11 +251,13 @@ class OrConstraintComponent(ConstraintComponent):
         reports = []
         non_conformant = False
         shape = self.shape
+        subgraphs = {fn: set() for fn in focus_value_nodes}
 
         def _evaluate_or_constraint(or_c):
             nonlocal self, shape, target_graph, focus_value_nodes, _evaluation_path
             _reports = []
             _non_conformant = False
+            _subgraphs = {}
             sg = shape.sg.graph
             or_list = set(sg.items(or_c))
             if len(or_list) < 1:
@@ -273,9 +275,17 @@ class OrConstraintComponent(ConstraintComponent):
                     passed_any = False
                     for or_shape in or_shapes:
                         try:
-                            _is_conform, _r = or_shape.validate(
+                            _is_conform, _r, _sg = or_shape.validate(
                                 target_graph, focus=v, _evaluation_path=_evaluation_path[:]
                             )
+                            # if f conforms to a shape in or_list, return the neighborhood for f and that shape
+                            # if f conforms to multiple shapes, return the union of f's neighborhoods with those shapes
+                            # (recall that f conforming to a shape means f is a key in that shape's _sg)
+                            for fn in _sg:
+                                if fn in _subgraphs:
+                                    _subgraphs[fn].update(_sg[fn])
+                                else:
+                                    _subgraphs[fn] = _sg[fn]
                         except ValidationFailure as e:
                             raise e
                         passed_any = passed_any or _is_conform
@@ -283,13 +293,22 @@ class OrConstraintComponent(ConstraintComponent):
                         _non_conformant = True
                         rept = self.make_v_result(target_graph, f, value_node=v)
                         _reports.append(rept)
-            return _non_conformant, _reports
+            return _non_conformant, _reports, _subgraphs
 
         for or_c in self.or_list:
-            _nc, _r = _evaluate_or_constraint(or_c)
+            _nc, _r, _sg = _evaluate_or_constraint(or_c)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # _sg will have a key for each focus node that satisfies the current or_c (note that it should match *all*)
+            # so if a focus node is not present, it should be removed from subgraphs
+            # if a focus node *is* present, the constraint's neighborhood (_sg[fn]) should be added to subgraphs[fn]
+            to_delete = set()
+            for fn in subgraphs:
+                if fn not in _sg:
+                    to_delete.add(fn)
+                else:
+                    subgraphs[fn].update(_sg[fn])
+        return (not non_conformant), reports, subgraphs
 
 
 class XoneConstraintComponent(ConstraintComponent):

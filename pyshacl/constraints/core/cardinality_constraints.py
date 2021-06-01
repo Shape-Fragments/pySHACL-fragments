@@ -96,13 +96,15 @@ class MinCountConstraintComponent(ConstraintComponent):
             return True, []
         reports = []
         non_conformant = False
+        subgraphs = {fn: set() for fn in focus_value_nodes}
 
         for f, value_nodes in focus_value_nodes.items():
             if not len(value_nodes) >= min_count:
+                subgraphs.pop(f)
                 non_conformant = True
                 rept = self.make_v_result(target_graph, f)
                 reports.append(rept)
-        return (not non_conformant), reports
+        return (not non_conformant), reports, subgraphs
 
 
 class MaxCountConstraintComponent(ConstraintComponent):
@@ -175,10 +177,12 @@ class MaxCountConstraintComponent(ConstraintComponent):
         max_count = int(self.max_count.value)
         reports = []
         non_conformant = False
+        subgraphs = {fn: set() for fn in focus_value_nodes}
 
         for f, value_nodes in focus_value_nodes.items():
             if not len(value_nodes) <= max_count:
+                subgraphs.pop(f)
                 non_conformant = True
                 rept = self.make_v_result(target_graph, f)
                 reports.append(rept)
-        return (not non_conformant), reports
+        return (not non_conformant), reports, subgraphs

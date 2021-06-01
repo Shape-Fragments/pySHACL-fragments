@@ -1,0 +1,7 @@
+@prefix ex: <http://example.com/ns#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+
+ex:MinCountExampleShape a sh:PropertyShape ;
+  sh:targetNode ex:Alice, ex:Bob, ex:Jean-Baptiste ;
+  sh:path ex:name ;
+  sh:minCount 1 .

@@ -17,12 +17,12 @@ from .extras import check_extra_installed
 from .pytypes import GraphLike
 from .target import apply_target_types, gather_target_types
 
-
 if owlrl.json_ld_available:
     import rdflib_jsonld  # noqa: F401
 
 from rdflib import BNode, Literal, URIRef
 
+from . import shape
 from .consts import (
     RDF_object,
     RDF_predicate,
@@ -51,7 +51,6 @@ from .rdfutil import (
 from .rdfutil.load import add_baked_in
 from .rules import apply_rules, gather_rules
 from .shapes_graph import ShapesGraph
-
 
 log_handler = logging.StreamHandler(stderr)
 log = logging.getLogger(__name__)
@@ -241,19 +240,24 @@ class Validator(object):
             named_graphs = [the_target_graph]
         reports = []
         non_conformant = False
+        subgraph = set()
 
         for g in named_graphs:
             if advanced:
                 apply_functions(advanced['functions'], g)
                 apply_rules(advanced['rules'], g)
             for s in shapes:
-                _is_conform, _reports = s.validate(g)
+                _is_conform, _reports, _subgraph = s.validate(g)
+                # _subgraphs will contain neighborhoods for each conforming focus node
+                # we will gather these neighborhoods in subgraph and later return them:
+                for fn in _subgraph:
+                    subgraph.update(_subgraph[fn])
                 non_conformant = non_conformant or (not _is_conform)
                 reports.extend(_reports)
             if advanced:
                 unapply_functions(advanced['functions'], g)
         v_report, v_text = self.create_validation_report(self.shacl_graph, not non_conformant, reports)
-        return (not non_conformant), v_report, v_text
+        return (not non_conformant), v_report, v_text, subgraph
 
 
 def assign_baked_in():
@@ -387,7 +391,7 @@ def validate(
                 'logger': log,
             },
         )
-        conforms, report_graph, report_text = validator.run()
+        conforms, report_graph, report_text, subgraph = validator.run()
     except ValidationFailure as e:
         conforms = False
         report_graph = e
@@ -406,7 +410,7 @@ def validate(
         if not (isinstance(do_serialize_report_graph, str)):
             do_serialize_report_graph = 'turtle'
         report_graph = report_graph.serialize(None, encoding='utf-8', format=do_serialize_report_graph)
-    return conforms, report_graph, report_text
+    return conforms, report_graph, report_text, subgraph
 
 
 def clean_validation_reports(actual_graph, actual_report, expected_graph, expected_report):

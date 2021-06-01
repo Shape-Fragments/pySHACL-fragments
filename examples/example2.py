@@ -55,15 +55,16 @@ data_file = '''
     "givenName": "Robert",
     "familyName": "Junior",
     "birthDate": "1971-07-07",
-    "deathDate": "1968-09-10",
+    "deathDate": "1972-09-10",
     "address": {
         "@id": "http://example.org/ns#BobsAddress",
         "streetAddress": "1600 Amphitheatre Pkway",
-        "postalCode": 9404
+        "postalCode": 10000
     }
 }
 '''
 data_file_format = 'json-ld'
+
 
 conforms, v_graph, v_text = validate(data_file, shacl_graph=shapes_file,
                                      data_graph_format=data_file_format,

@@ -71,14 +71,17 @@ class StringBasedConstraintBase(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraph = {fn: set() for fn in focus_value_nodes}
 
         for r in self.string_rules:
-            _nc, _r = self._evaluate_string_rule(r, target_graph, focus_value_nodes)
+            _nc, _r, _ncvn = self._evaluate_string_rule(r, target_graph, focus_value_nodes)
+            for _nonconforming_focus_nodes in _ncvn:
+                subgraph.pop(_nonconforming_focus_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
             if not self.allow_multi_rules:
                 break
-        return (not non_conformant), reports
+        return (not non_conformant), reports, subgraph
 
 
 class MinLengthConstraintComponent(StringBasedConstraintBase):
@@ -265,6 +268,7 @@ class PatternConstraintComponent(StringBasedConstraintBase):
     def _evaluate_string_rule(self, r, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        nonconforming_focus_nodes = set()
         assert isinstance(r, rdflib.Literal)
         re_flags = 0
         if self.flags:
@@ -292,7 +296,8 @@ class PatternConstraintComponent(StringBasedConstraintBase):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    nonconforming_focus_nodes.add(f)
+        return non_conformant, reports, nonconforming_focus_nodes
 
 
 class LanguageInConstraintComponent(StringBasedConstraintBase):
