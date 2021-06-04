@@ -384,10 +384,17 @@ class Shape(object):
         elif isinstance(path_val, Literal):
             raise ReportableRuntimeError("Values of a property path cannot be a Literal.")
 
-        # returning paths is so far only implemented for simple paths
-        raise NotImplementedError("Returning paths is so far only implemented for simple paths")
-
         # At this point, path_val _must_ be a BNode
+
+        find_inverse = set(sg.graph.objects(path_val, SH_inversePath))
+        if len(find_inverse) > 0:
+            inverse_path = next(iter(find_inverse))
+            reachable_nodes = set(target_graph.subjects(inverse_path, focus))
+            return reachable_nodes, {reachable: [(reachable, inverse_path, focus)] for reachable in reachable_nodes}
+
+        # returning paths is so far only implemented for simple paths and their inverses
+        raise NotImplementedError("Returning paths is so far only implemented for simple paths and their inverses")
+
         # TODO, the path_val BNode must be value of exactly one sh:path subject in the SG.
         if recursion >= 10:
             raise ReportableRuntimeError("Path traversal depth is too much!")
@@ -415,11 +422,6 @@ class Shape(object):
                 value_nodes = cls.value_nodes_from_path(sg, tln, rest_node, target_graph, recursion=recursion + 1)
                 found_value_nodes.update(value_nodes)
             return found_value_nodes
-
-        find_inverse = set(sg.graph.objects(path_val, SH_inversePath))
-        if len(find_inverse) > 0:
-            inverse_path = next(iter(find_inverse))
-            return set(target_graph.subjects(inverse_path, focus))
 
         find_alternatives = set(sg.graph.objects(path_val, SH_alternativePath))
         if len(find_alternatives) > 0:

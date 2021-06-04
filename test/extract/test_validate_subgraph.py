@@ -3,7 +3,7 @@ from rdflib import Graph
 from rdflib.compare import isomorphic
 
 from examples import example3, example4, example5, example6, example7, example8, example_qvc, example_class, \
-    example_targetClass
+    example_targetClass, example_inversePath
 from pyshacl import validate
 
 
@@ -60,6 +60,10 @@ class TestValidateSubgraph(unittest.TestCase):
     def test_example_targetClass(self):
         self.assertTrue(
             isomorphic(get_correct_subgraph(example_targetClass), get_predicted_subgraph(example_targetClass)))
+
+    def test_example_inversePath(self):
+        self.assertTrue(
+            isomorphic(get_correct_subgraph(example_inversePath), get_predicted_subgraph(example_inversePath)))
 
 
 if __name__ == '__main__':
