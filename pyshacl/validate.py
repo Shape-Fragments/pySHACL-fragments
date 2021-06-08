@@ -344,7 +344,7 @@ def validate(
     :param kwargs:
     :return:
     """
-
+    print("HEY")
     if kwargs.get('debug', False):
         log_handler.setLevel(logging.DEBUG)
         log.setLevel(logging.DEBUG)

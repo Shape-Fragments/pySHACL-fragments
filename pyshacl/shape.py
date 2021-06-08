@@ -336,13 +336,13 @@ class Shape(object):
                         found_node_targets[instance] = {(instance, RDF_type, subclass),
                                                         (subclass, RDFS_subClassOf, tc)}
         for s_of in target_subjects_of:
-            for sub, obj in {s for s, o in data_graph.subject_objects(s_of)}:
+            for sub, obj in data_graph.subject_objects(s_of):
                 if sub in found_node_targets:
                     found_node_targets[sub].add((sub, s_of, obj))
                 else:
                     found_node_targets[sub] = {(sub, s_of, obj)}
         for o_of in target_objects_of:
-            for sub, obj in {s for s, o in data_graph.subject_objects(o_of)}:
+            for sub, obj in data_graph.subject_objects(o_of):
                 if obj in found_node_targets:
                     found_node_targets[obj].add((sub, o_of, obj))
                 else:

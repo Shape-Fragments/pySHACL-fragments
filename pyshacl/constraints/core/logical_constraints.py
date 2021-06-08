@@ -13,7 +13,6 @@ from pyshacl.errors import ConstraintLoadError, ReportableRuntimeError, ShapeRec
 from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
-
 SH_not = SH.term('not')
 SH_and = SH.term('and')
 SH_or = SH.term('or')
@@ -161,11 +160,13 @@ class AndConstraintComponent(ConstraintComponent):
         reports = []
         non_conformant = False
         shape = self.shape
+        subgraphs = {fn: set() for fn in focus_value_nodes}
 
         def _evaluate_and_constraint(and_c):
             nonlocal self, shape, target_graph, focus_value_nodes, _evaluation_path
             _reports = []
             _non_conformant = False
+            _subgraphs = {}
             sg = shape.sg.graph
             and_list = set(sg.items(and_c))
             if len(and_list) < 1:
@@ -181,11 +182,16 @@ class AndConstraintComponent(ConstraintComponent):
             for f, value_nodes in focus_value_nodes.items():
                 for v in value_nodes:
                     passed_all = True
+                    v_subgraph = set()
                     for and_shape in and_shapes:
                         try:
-                            _is_conform, _r = and_shape.validate(
+                            _is_conform, _r, _sg = and_shape.validate(
                                 target_graph, focus=v, _evaluation_path=_evaluation_path[:]
                             )
+                            # in v_subgraph, build the union of v's neighborhoods for all shapes in and_list
+                            # we will add it this to f's neighborhood
+                            for fn in _sg:
+                                v_subgraph.update(_sg[fn])
                         except ValidationFailure as e:
                             raise e
                         passed_all = passed_all and _is_conform
@@ -193,13 +199,30 @@ class AndConstraintComponent(ConstraintComponent):
                         _non_conformant = True
                         rept = self.make_v_result(target_graph, f, value_node=v)
                         _reports.append(rept)
-            return _non_conformant, _reports
+                    else:
+                        # v conforms to all shapes in and_list, so the neighborhood of this value node (v_subgraph)
+                        # should be added to the neighborhood of the focus node (_subgraphs[f])
+                        if f in _subgraphs:
+                            _subgraphs[f].update(v_subgraph)
+                        else:
+                            _subgraphs[f] = v_subgraph
+
+            return _non_conformant, _reports, _subgraphs
 
         for and_c in self.and_list:
-            _nc, _r = _evaluate_and_constraint(and_c)
+            _nc, _r, _sg = _evaluate_and_constraint(and_c)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # _sg has a key for each focus node that satisfies the current and_c (note that it should match *all*)
+            # so if a focus node is not present, it should be removed from subgraphs
+            # if a focus node *is* present, the constraint's neighborhood (_sg[fn]) should be added to subgraphs[fn]
+            to_delete = set()
+            for fn in subgraphs:
+                if fn not in _sg:
+                    to_delete.add(fn)
+                else:
+                    subgraphs[fn].update(_sg[fn])
+        return (not non_conformant), reports, subgraphs
 
 
 class OrConstraintComponent(ConstraintComponent):
@@ -279,13 +302,13 @@ class OrConstraintComponent(ConstraintComponent):
                                 target_graph, focus=v, _evaluation_path=_evaluation_path[:]
                             )
                             # if f conforms to a shape in or_list, return the neighborhood for f and that shape
-                            # if f conforms to multiple shapes, return the union of f's neighborhoods with those shapes
-                            # (recall that f conforming to a shape means f is a key in that shape's _sg)
+                            # if fn conforms to multiple shapes in or_list, make the union of those neighborhoods
+                            # (recall that fn conforming to a shape means fn is a key in that shape's _sg)
                             for fn in _sg:
                                 if fn in _subgraphs:
-                                    _subgraphs[fn].update(_sg[fn])
+                                    _subgraphs[f].update(_sg[fn])
                                 else:
-                                    _subgraphs[fn] = _sg[fn]
+                                    _subgraphs[f] = _sg[fn]
                         except ValidationFailure as e:
                             raise e
                         passed_any = passed_any or _is_conform
