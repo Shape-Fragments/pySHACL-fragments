@@ -268,8 +268,7 @@ class HasValueConstraintComponent(ConstraintComponent):
             for v_node in value_nodes:
                 if v_node == hv:
                     conformant = True
-                    subgraphs[f] = set()
-                    break
+                    subgraphs[f] = value_nodes[v_node]
             if not conformant:
                 non_conformant = True
                 # Note, including the value in the report generation here causes this constraint to not pass

@@ -606,7 +606,7 @@ class Shape(object):
 
             # keep flag for case where there is at least one "for all" constraint (see end of this function)
             # TODO hasvalue does have non-forall semantics as well
-            if not type(c).__name__ == "QualifiedValueShapeConstraintComponent":
+            if not type(c).__name__ in {"QualifiedValueShapeConstraintComponent", "HasValueConstraintComponent"}:
                 has_forall_constraint = True
 
             _is_conform, _r, _subgraphs = c.evaluate(target_graph, focus_value_nodes, _e_p)
