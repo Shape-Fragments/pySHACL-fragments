@@ -12,7 +12,6 @@ from pyshacl.errors import ConstraintLoadError, ReportableRuntimeError
 from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
-
 SH_equals = SH.term('equals')
 SH_disjoint = SH.term('disjoint')
 SH_lessThan = SH.term('lessThan')
@@ -78,16 +77,27 @@ class EqualsConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in focus_value_nodes}
 
         for eq in iter(self.property_compare_set):
-            _nc, _r = self._evaluate_property_equals(eq, target_graph, focus_value_nodes)
+            _nc, _r, _sg = self._evaluate_property_equals(eq, target_graph, focus_value_nodes)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # _sg has a key for each focus node that satisfies the current eq (note that it should match *all*)
+            # so if a focus node is not present, it should be removed from subgraphs
+            # if a focus node *is* present, the constraint's neighborhood (_sg[fn]) should be added to subgraphs[fn]
+            to_delete = set()
+            for fn in subgraphs:
+                if fn not in _sg:
+                    to_delete.add(fn)
+                else:
+                    subgraphs[fn].update(_sg[fn])
+        return (not non_conformant), reports, subgraphs
 
     def _evaluate_property_equals(self, eq, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        subgraphs = {}
         for f, value_nodes in f_v_dict.items():
             value_node_set = set(value_nodes)
             compare_values = set(target_graph.objects(f, eq))
@@ -96,14 +106,14 @@ class EqualsConstraintComponent(ConstraintComponent):
             if len(value_nodes_missing) > 0 or len(compare_values_missing) > 0:
                 non_conformant = True
             else:
-                continue
+                subgraphs[f] = {(f, eq, c) for c in compare_values}
             for value_node in value_nodes_missing:
                 rept = self.make_v_result(target_graph, f, value_node=value_node)
                 reports.append(rept)
             for compare_value in compare_values_missing:
                 rept = self.make_v_result(target_graph, f, value_node=compare_value)
                 reports.append(rept)
-        return non_conformant, reports
+        return non_conformant, reports, subgraphs
 
 
 class DisjointConstraintComponent(ConstraintComponent):

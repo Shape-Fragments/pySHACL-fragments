@@ -344,6 +344,7 @@ class LanguageInConstraintComponent(StringBasedConstraintBase):
     def _evaluate_string_rule(self, r, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        nonconforming_focus_nodes = set()
         languages_need = set()
         sg = self.shape.sg.graph
         try:
@@ -382,7 +383,8 @@ class LanguageInConstraintComponent(StringBasedConstraintBase):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    nonconforming_focus_nodes.add(f)
+        return non_conformant, reports, nonconforming_focus_nodes
 
 
 class UniqueLangConstraintComponent(StringBasedConstraintBase):

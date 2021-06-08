@@ -91,9 +91,7 @@ class MinCountConstraintComponent(ConstraintComponent):
         :type _evaluation_path: list
         """
         min_count = int(self.min_count.value)
-        if min_count == 0:
-            # MinCount of zero always passes
-            return True, []
+
         reports = []
         non_conformant = False
         subgraphs = {fn: set() for fn in focus_value_nodes}
