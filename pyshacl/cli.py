@@ -9,7 +9,7 @@ from os import path
 from rdflib import Graph
 from rdflib.compare import isomorphic
 
-sys.path.append("..") # This line was added, otherwise ModuleNotFoundError: No module named 'pyshacl'
+sys.path.append("..")  # This line was added, otherwise ModuleNotFoundError: No module named 'pyshacl'
 from pyshacl import __version__, validate
 from pyshacl.errors import ReportableRuntimeError, ValidationFailure
 
@@ -56,7 +56,7 @@ parser.add_argument(
     action='store_true',
     default=False,
     help='Validate the SHACL Shapes graph against the shacl-shacl '
-    'Shapes Graph before before validating the Data Graph.',
+         'Shapes Graph before before validating the Data Graph.',
 )
 parser.add_argument(
     '--imports',
@@ -142,11 +142,13 @@ parser.add_argument(
     '-eo',
     '--expected_output',
     dest='expected_output',
-    #type=argparse.FileType('rb'),
+    # type=argparse.FileType('rb'),
     action='store',
     nargs='?',
     help='The file containing the expected output.',
 )
+
+
 # parser.add_argument('-h', '--help', action="help", help='Show this help text.')
 
 
@@ -187,11 +189,10 @@ def main():
         if f != "auto":
             validator_kwargs['data_graph_format'] = f
     try:
-        is_conform, v_graph, v_text, dict_paths = validate(args.data, **validator_kwargs)
-        subgraph = Graph() # This is the conforming subgraph (containing paths of conforming focus nodes)
-        for focus in dict_paths:
-            for triple in dict_paths[focus]:
-                subgraph.add(triple)
+        is_conform, v_graph, v_text, triples = validate(args.data, **validator_kwargs)
+        subgraph = Graph()  # This is the conforming subgraph (containing paths of conforming focus nodes)
+        for triple in triples:
+            subgraph.add(triple)
         if isinstance(v_graph, BaseException):
             raise v_graph
     except ValidationFailure as vf:
@@ -222,10 +223,9 @@ def main():
         expected_output = Graph().parse(format="turtle", data=expected_output)
         # Compare the (conforming) subgraph output produced by code (validate function) with the expected output
         is_isomorphic = isomorphic(expected_output, subgraph)
-        args.output.write("is_isomorphic: ")
-        args.output.write(str(is_isomorphic))
+        sys.stdout.write(f"is_isomorphic: {str(is_isomorphic)}\n")
 
-    elif args.return_subgraphs:
+    if args.return_subgraphs:
         if args.format == 'human':
             subgraph = subgraph.serialize(format='nt')
         else:
