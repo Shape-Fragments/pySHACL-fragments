@@ -128,6 +128,7 @@ class MinLengthConstraintComponent(StringBasedConstraintBase):
     def _evaluate_string_rule(self, r, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        nonconforming_focus_nodes = set()
         assert isinstance(r, rdflib.Literal)
         min_len = int(r.value)
         if min_len < 0:
@@ -147,7 +148,8 @@ class MinLengthConstraintComponent(StringBasedConstraintBase):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    nonconforming_focus_nodes.add(f)
+        return non_conformant, reports, nonconforming_focus_nodes
 
 
 class MaxLengthConstraintComponent(StringBasedConstraintBase):
@@ -194,6 +196,7 @@ class MaxLengthConstraintComponent(StringBasedConstraintBase):
     def _evaluate_string_rule(self, r, target_graph, f_v_dict):
         reports = []
         non_conformant = False
+        nonconforming_focus_nodes = set()
         assert isinstance(r, rdflib.Literal)
         max_len = int(r.value)
         if max_len < 0:
@@ -211,7 +214,8 @@ class MaxLengthConstraintComponent(StringBasedConstraintBase):
                     non_conformant = True
                     rept = self.make_v_result(target_graph, f, value_node=v)
                     reports.append(rept)
-        return non_conformant, reports
+                    nonconforming_focus_nodes.add(f)
+        return non_conformant, reports, nonconforming_focus_nodes
 
 
 class PatternConstraintComponent(StringBasedConstraintBase):
