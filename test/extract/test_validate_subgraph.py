@@ -2,8 +2,8 @@ import unittest
 from rdflib import Graph
 from rdflib.compare import isomorphic
 
-from examples import example3, example4, example5, example6, example7, example8, example_qvc, example_class, \
-    example_targetClass, example_inversePath, example_hasValue, example_equals
+from examples import example3, example4, example5, example6, example7, example_or, example_qvc, example_class, \
+    example_targetClass, example_inversePath, example_hasValue, example_equals, example_and
 from pyshacl import validate
 
 
@@ -48,8 +48,11 @@ class TestValidateSubgraph(unittest.TestCase):
     def test_example7(self):
         self.assertTrue(isomorphic(get_correct_subgraph(example7), get_predicted_subgraph(example7)))
 
-    def test_example8(self):
-        self.assertTrue(isomorphic(get_correct_subgraph(example8), get_predicted_subgraph(example8)))
+    def test_example_or(self):
+        self.assertTrue(isomorphic(get_correct_subgraph(example_or), get_predicted_subgraph(example_or)))
+
+    def test_example_and(self):
+        self.assertTrue(isomorphic(get_correct_subgraph(example_and), get_predicted_subgraph(example_and)))
 
     def test_example_qvc(self):
         self.assertTrue(isomorphic(get_correct_subgraph(example_qvc), get_predicted_subgraph(example_qvc)))

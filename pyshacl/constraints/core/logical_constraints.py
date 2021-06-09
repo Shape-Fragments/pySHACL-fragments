@@ -222,6 +222,8 @@ class AndConstraintComponent(ConstraintComponent):
                     to_delete.add(fn)
                 else:
                     subgraphs[fn].update(_sg[fn])
+            for fn in to_delete:
+                subgraphs.pop(fn)
         return (not non_conformant), reports, subgraphs
 
 
@@ -331,6 +333,8 @@ class OrConstraintComponent(ConstraintComponent):
                     to_delete.add(fn)
                 else:
                     subgraphs[fn].update(_sg[fn])
+            for fn in to_delete:
+                subgraphs.pop(fn)
         return (not non_conformant), reports, subgraphs
 
 

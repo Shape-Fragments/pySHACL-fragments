@@ -605,7 +605,6 @@ class Shape(object):
             _e_p.append(c)
 
             # keep flag for case where there is at least one "for all" constraint (see end of this function)
-            # TODO hasvalue does have non-forall semantics as well
             if not type(c).__name__ in {"QualifiedValueShapeConstraintComponent", "HasValueConstraintComponent"}:
                 has_forall_constraint = True
 

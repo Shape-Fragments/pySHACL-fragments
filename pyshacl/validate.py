@@ -7,6 +7,7 @@ from functools import wraps
 from os import path
 from sys import stderr
 from typing import Dict, List, Optional, Set, Tuple, Union
+from time import process_time
 
 import owlrl
 import rdflib
@@ -344,7 +345,6 @@ def validate(
     :param kwargs:
     :return:
     """
-    print("HEY")
     if kwargs.get('debug', False):
         log_handler.setLevel(logging.DEBUG)
         log.setLevel(logging.DEBUG)
@@ -391,7 +391,11 @@ def validate(
                 'logger': log,
             },
         )
+        tic = process_time()
         conforms, report_graph, report_text, subgraph = validator.run()
+        toc = process_time()
+        print(toc - tic)
+        print("^^^^ fragment extraction time")
     except ValidationFailure as e:
         conforms = False
         report_graph = e

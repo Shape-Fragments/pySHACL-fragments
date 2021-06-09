@@ -223,7 +223,18 @@ def main():
         expected_output = Graph().parse(format="turtle", data=expected_output)
         # Compare the (conforming) subgraph output produced by code (validate function) with the expected output
         is_isomorphic = isomorphic(expected_output, subgraph)
-        sys.stdout.write(f"is_isomorphic: {str(is_isomorphic)}\n")
+        sys.stdout.write(f"IS ISOMORPHIC: {str(is_isomorphic)}\n")
+        if not is_isomorphic:
+            missing = expected_output - subgraph
+            print("MISSING TRIPLES:")
+            for triple_binary_string in sorted(missing.serialize(format='nt').splitlines()):
+                if triple_binary_string:
+                    print(triple_binary_string.decode('ascii'))
+            excess = subgraph - expected_output
+            print("EXCESS TRIPLES:")
+            for triple_binary_string in sorted(excess.serialize(format='nt').splitlines()):
+                if triple_binary_string:
+                    print(triple_binary_string.decode('ascii'))
 
     if args.return_subgraphs:
         if args.format == 'human':

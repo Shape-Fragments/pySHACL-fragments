@@ -21,7 +21,7 @@ data_file = '''
 @prefix ex: <http://example.com/ns#> .
 
 ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
+ex:Bob ex:givenName "Bobby" .
 ex:Alice ex:lastName "Alice" .
 ex:Carol ex:givenName "Carol" .
 '''
@@ -31,7 +31,7 @@ output_file = '''
 @prefix ex: <http://example.com/ns#> .
 
 ex:Bob ex:firstName "Robert" .
-ex:Bob ex:firstName "Bobby" .
+ex:Bob ex:givenName "Bobby" .
 ex:Carol ex:givenName "Carol" .
 '''
 
