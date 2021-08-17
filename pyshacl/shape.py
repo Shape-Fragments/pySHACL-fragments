@@ -15,6 +15,7 @@ from .consts import (
     SH_alternativePath,
     SH_deactivated,
     SH_description,
+    SH_Info,
     SH_inversePath,
     SH_jsFunctionName,
     SH_JSTarget,
@@ -24,6 +25,7 @@ from .consts import (
     SH_oneOrMorePath,
     SH_order,
     SH_property,
+    SH_resultSeverity,
     SH_select,
     SH_severity,
     SH_SPARQLTarget,
@@ -34,6 +36,7 @@ from .consts import (
     SH_targetObjectsOf,
     SH_targetSubjectsOf,
     SH_Violation,
+    SH_Warning,
     SH_zeroOrMorePath,
     SH_zeroOrOnePath,
 )
@@ -42,6 +45,7 @@ from .helper import get_query_helper_cls
 from .pytypes import GraphLike
 
 if TYPE_CHECKING:
+    from pyshacl.constraints import ConstraintComponent
     from pyshacl.shapes_graph import ShapesGraph
 
 module = sys.modules[__name__]
@@ -538,7 +542,8 @@ class Shape(object):
                 Union[URIRef, BNode],
             ]
         ] = None,
-        bail_on_error: Optional[bool] = False,
+        abort_on_first: Optional[bool] = False,
+        allow_warnings: Optional[bool] = False,
         _evaluation_path: Optional[List] = None,
     ):
         subgraphs = {}
@@ -583,6 +588,13 @@ class Shape(object):
         parameters = (p for p, v in self.sg.predicate_objects(self.node) if p in search_parameters)
         reports = []
         focus_value_nodes = self.value_nodes(target_graph, focus)
+        filter_reports: bool = False
+        allow_conform: bool = False
+        if allow_warnings:
+            if self.severity in (SH_Warning, SH_Info):
+                allow_conform = True
+            else:
+                filter_reports = True
 
         non_conformant = False
         done_constraints = set()
@@ -590,7 +602,7 @@ class Shape(object):
         run_count = 0
         _evaluation_path.append(self)
         constraint_components = [constraint_map[p] for p in iter(parameters)]
-        for constraint_component in constraint_components:
+        for constraint_component in constraint_components:  # type: Type[ConstraintComponent]
             if constraint_component in done_constraints:
                 continue
             try:
@@ -622,14 +634,26 @@ class Shape(object):
             for fn in to_delete:
                 subgraphs.pop(fn)
             non_conformant = non_conformant or (not _is_conform)
+            if _is_conform or allow_conform:
+                ...
+            elif filter_reports:
+                all_warn = True
+                for _r_inner in _r:
+                    v_str, v_node, v_parts = _r_inner
+                    severity_bits = list(filter(lambda p: p[0] == v_node and p[1] == SH_resultSeverity, v_parts))
+                    if severity_bits:
+                        all_warn = all_warn and severity_bits[0][2] in (SH_Warning, SH_Info)
+                non_conformant = not all_warn
+            else:
+                non_conformant = non_conformant or (not _is_conform)
             reports.extend(_r)
             run_count += 1
             done_constraints.add(constraint_component)
-            if non_conformant and bail_on_error:
+            if non_conformant and abort_on_first:
                 break
         applicable_custom_constraints = self.find_custom_constraints()
         for a in applicable_custom_constraints:
-            if non_conformant and bail_on_error:
+            if non_conformant and abort_on_first:
                 break
             _e_p = _evaluation_path[:]
             validator = a.make_validator_for_shape(self)

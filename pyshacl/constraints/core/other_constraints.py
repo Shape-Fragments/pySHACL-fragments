@@ -6,22 +6,20 @@ from typing import Dict, List
 
 import rdflib
 
-from rdflib.namespace import RDFS
-
 from pyshacl.constraints.constraint_component import ConstraintComponent
-from pyshacl.consts import SH, RDF_type, SH_property
+from pyshacl.consts import RDFS, SH, RDF_type, SH_property
 from pyshacl.errors import ConstraintLoadError, ReportableRuntimeError
 from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
 
-SH_InConstraintComponent = SH.term('InConstraintComponent')
-SH_ClosedConstraintComponent = SH.term('ClosedConstraintComponent')
-SH_HasValueConstraintComponent = SH.term('HasValueConstraintComponent')
-SH_in = SH.term('in')
-SH_closed = SH.term('closed')
-SH_ignoredProperties = SH.term('ignoredProperties')
-SH_hasValue = SH.term('hasValue')
+SH_InConstraintComponent = SH.InConstraintComponent
+SH_ClosedConstraintComponent = SH.ClosedConstraintComponent
+SH_HasValueConstraintComponent = SH.HasValueConstraintComponent
+SH_in = SH["in"]
+SH_closed = SH.closed
+SH_ignoredProperties = SH.ignoredProperties
+SH_hasValue = SH.hasValue
 
 
 class InConstraintComponent(ConstraintComponent):
@@ -32,6 +30,10 @@ class InConstraintComponent(ConstraintComponent):
     Textual Definition:
     For each value node that is not a member of $in, there is a validation result with the value node as sh:value.
     """
+
+    shacl_constraint_component = SH_InConstraintComponent
+    shape_expecting = False
+    list_taking = True
 
     def __init__(self, shape):
         super(InConstraintComponent, self).__init__(shape)
@@ -59,10 +61,6 @@ class InConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "InConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_InConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[rdflib.Literal]:
         list1 = [stringify_node(self.shape.sg.graph, val) for val in self.in_vals]
@@ -96,7 +94,9 @@ class ClosedConstraintComponent(ConstraintComponent):
     If $closed is true then there is a validation result for each triple that has a value node as its subject and a predicate that is not explicitly enumerated as a value of sh:path in any of the property shapes declared via sh:property at the current shape. If $ignoredProperties has a value then the properties enumerated as members of this SHACL list are also permitted for the value node. The validation result MUST have the predicate of the triple as its sh:resultPath, and the object of the triple as its sh:value.
     """
 
-    ALWAYS_IGNORE = {(RDF_type, RDFS.term('Resource'))}
+    shacl_constraint_component = SH_ClosedConstraintComponent
+
+    ALWAYS_IGNORE = {(RDF_type, RDFS.Resource)}
 
     def __init__(self, shape):
         super(ClosedConstraintComponent, self).__init__(shape)
@@ -137,10 +137,6 @@ class ClosedConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "ClosedConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_ClosedConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[rdflib.Literal]:
         m = "Node {} is closed. It cannot have value: {}".format(
@@ -198,6 +194,8 @@ class HasValueConstraintComponent(ConstraintComponent):
     If the RDF term $hasValue is not among the value nodes, there is a validation result.
     """
 
+    shacl_constraint_component = SH_HasValueConstraintComponent
+
     def __init__(self, shape):
         super(HasValueConstraintComponent, self).__init__(shape)
         has_value_set = set(self.shape.objects(SH_hasValue))
@@ -215,10 +213,6 @@ class HasValueConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "HasValueConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_HasValueConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[rdflib.Literal]:
         the_set = [stringify_node(self.shape.sg.graph, s) for s in self.has_value_set]

@@ -7,11 +7,12 @@ from typing import Dict, List
 
 import rdflib
 
-from rdflib.namespace import RDF, XSD
+from rdflib.namespace import XSD
 from rdflib.term import Literal
 
 from pyshacl.constraints.constraint_component import ConstraintComponent
 from pyshacl.consts import (
+    RDF,
     SH,
     SH_IRI,
     RDF_type,
@@ -29,19 +30,19 @@ from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
 
-RDF_langString = RDF.term('langString')
-XSD_string = XSD.term('string')
-XSD_integer = XSD.term('integer')
-XSD_float = XSD.term('float')
-XSD_boolean = XSD.term('boolean')
-XSD_date = XSD.term('date')
-XSD_time = XSD.term('time')
-XSD_dateTime = XSD.term('dateTime')
+RDF_langString = RDF.langString
+XSD_string = XSD.string
+XSD_integer = XSD.integer
+XSD_float = XSD.float
+XSD_boolean = XSD.boolean
+XSD_date = XSD.date
+XSD_time = XSD.time
+XSD_dateTime = XSD.dateTime
 
-SH_class = SH.term('class')
-SH_ClassConstraintComponent = SH.term('ClassConstraintComponent')
-SH_DatatypeConstraintComponent = SH.term('DatatypeConstraintComponent')
-SH_NodeKindConstraintComponent = SH.term('NodeKindConstraintComponent')
+SH_class = SH["class"]
+SH_ClassConstraintComponent = SH.ClassConstraintComponent
+SH_DatatypeConstraintComponent = SH.DatatypeConstraintComponent
+SH_NodeKindConstraintComponent = SH.NodeKindConstraintComponent
 
 
 class ClassConstraintComponent(ConstraintComponent):
@@ -52,6 +53,8 @@ class ClassConstraintComponent(ConstraintComponent):
     Textual Definition:
     For each value node that is either a literal, or a non-literal that is not a SHACL instance of $class in the data graph, there is a validation result with the value node as sh:value.
     """
+
+    shacl_constraint_component = SH_ClassConstraintComponent
 
     def __init__(self, shape):
         super(ClassConstraintComponent, self).__init__(shape)
@@ -70,10 +73,6 @@ class ClassConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "ClassConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_ClassConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         if len(self.class_rules) < 2:
@@ -126,10 +125,7 @@ class ClassConstraintComponent(ConstraintComponent):
                             found = True
                             subgraphs[f].add((v, RDF_type, ctype))
                             break
-                        # Note, this only ones _one_ level of subclass traversing.
-                        # For more levels, the whole target graph should be put through
-                        # a RDFS reasoning engine.
-                        subclasses = target_graph.objects(ctype, RDFS_subClassOf)
+                        subclasses = target_graph.transitive_objects(ctype, RDFS_subClassOf)
                         if class_rule in iter(subclasses):
                             subgraphs[f].add((v, RDF_type, ctype))
                             subgraphs[f].add((ctype, RDFS_subClassOf, class_rule))
@@ -151,6 +147,8 @@ class DatatypeConstraintComponent(ConstraintComponent):
     Textual Definition:
     For each value node that is not a literal, or is a literal with a datatype that does not match $datatype, there is a validation result with the value node as sh:value. The datatype of a literal is determined following the datatype function of SPARQL 1.1. A literal matches a datatype if the literal's datatype has the same IRI and, for the datatypes supported by SPARQL 1.1, is not an ill-typed literal.
     """
+
+    shacl_constraint_component = SH_DatatypeConstraintComponent
 
     def __init__(self, shape):
         super(DatatypeConstraintComponent, self).__init__(shape)
@@ -174,10 +172,6 @@ class DatatypeConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "DatatypeConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_DatatypeConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         m = "Value is not Literal with datatype {}".format(stringify_node(self.shape.sg.graph, self.datatype_rule))
@@ -247,6 +241,8 @@ class NodeKindConstraintComponent(ConstraintComponent):
     For each value node that does not match $nodeKind, there is a validation result with the value node as sh:value. Any IRI matches only sh:IRI, sh:BlankNodeOrIRI and sh:IRIOrLiteral. Any blank node matches only sh:BlankNode, sh:BlankNodeOrIRI and sh:BlankNodeOrLiteral. Any literal matches only sh:Literal, sh:BlankNodeOrLiteral and sh:IRIOrLiteral.
     """
 
+    shacl_constraint_component = SH_NodeKindConstraintComponent
+
     def __init__(self, shape):
         super(NodeKindConstraintComponent, self).__init__(shape)
         nodekind_rules = list(self.shape.objects(SH_nodeKind))
@@ -269,10 +265,6 @@ class NodeKindConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "NodeKindConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_NodeKindConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         m = "Value is not of Node Kind {}".format(stringify_node(self.shape.sg.graph, self.nodekind_rule))

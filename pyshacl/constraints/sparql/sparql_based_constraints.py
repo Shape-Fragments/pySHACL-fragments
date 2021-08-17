@@ -13,8 +13,8 @@ from pyshacl.helper import get_query_helper_cls
 from pyshacl.pytypes import GraphLike
 
 
-SH_sparql = SH.term('sparql')
-SH_SPARQLConstraintComponent = SH.term('SPARQLConstraintComponent')
+SH_sparql = SH.sparql
+SH_SPARQLConstraintComponent = SH.SPARQLConstraintComponent
 
 
 class SPARQLBasedConstraint(ConstraintComponent):
@@ -23,6 +23,8 @@ class SPARQLBasedConstraint(ConstraintComponent):
     Link:
     https://www.w3.org/TR/shacl/#sparql-constraints
     """
+
+    shacl_constraint_component = SH_SPARQLConstraintComponent
 
     def __init__(self, shape):
         super(SPARQLBasedConstraint, self).__init__(shape)
@@ -87,10 +89,6 @@ class SPARQLBasedConstraint(ConstraintComponent):
     def constraint_name(cls):
         return "SPARQLConstraintComponent"
 
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_SPARQLConstraintComponent
-
     def evaluate(self, target_graph: GraphLike, focus_value_nodes: Dict, _evaluation_path: List):
         """
         :type target_graph: rdflib.Graph
@@ -136,7 +134,9 @@ class SPARQLBasedConstraint(ConstraintComponent):
                     t, p, v = v
                     if v is None:
                         v = result_val
-                    rept = self.make_v_result(target_graph, t or f, value_node=v, result_path=p, **rept_kwargs)
+                    rept = self.make_v_result(
+                        target_graph, t or f, value_node=v, result_path=p, bound_vars=(t, p, v), **rept_kwargs
+                    )
                 else:
                     rept = self.make_v_result(target_graph, f, value_node=v, **rept_kwargs)
                 reports.append(rept)

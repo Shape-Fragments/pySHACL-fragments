@@ -14,12 +14,12 @@ from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
 
-XSD_integer = XSD.term('integer')
-SH_minCount = SH.term('minCount')
-SH_maxCount = SH.term('maxCount')
+XSD_integer = XSD.integer
+SH_minCount = SH.minCount
+SH_maxCount = SH.maxCount
 
-SH_MinCountConstraintComponent = SH.term('MinCountConstraintComponent')
-SH_MaxCountConstraintComponent = SH.term('MaxCountConstraintComponent')
+SH_MinCountConstraintComponent = SH.MinCountConstraintComponent
+SH_MaxCountConstraintComponent = SH.MaxCountConstraintComponent
 
 
 class MinCountConstraintComponent(ConstraintComponent):
@@ -30,6 +30,8 @@ class MinCountConstraintComponent(ConstraintComponent):
     Textual Definition:
     If the number of value nodes is less than $minCount, there is a validation result.
     """
+
+    shacl_constraint_component = SH_MinCountConstraintComponent
 
     def __init__(self, shape):
         super(MinCountConstraintComponent, self).__init__(shape)
@@ -68,10 +70,6 @@ class MinCountConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "MinCountConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_MinCountConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         p = self.shape.path()
@@ -113,6 +111,8 @@ class MaxCountConstraintComponent(ConstraintComponent):
     If the number of value nodes is greater than $maxCount, there is a validation result.
     """
 
+    shacl_constraint_component = SH_MaxCountConstraintComponent
+
     def __init__(self, shape):
         super(MaxCountConstraintComponent, self).__init__(shape)
         max_count = list(self.shape.objects(SH_maxCount))
@@ -150,10 +150,6 @@ class MaxCountConstraintComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "MaxCountConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        return SH_MaxCountConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         p = self.shape.path()

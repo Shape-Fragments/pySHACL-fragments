@@ -20,12 +20,14 @@ if typing.TYPE_CHECKING:
     from pyshacl.shapes_graph import ShapesGraph
 
 
-SH_JSConstraint = SH.term('JSConstraint')
-SH_JSConstraintComponent = SH.term('JSConstraintComponent')
+SH_JSConstraint = SH.JSConstraint
+SH_JSConstraintComponent = SH.JSConstraintComponent
 
 
 class BoundShapeJSValidatorComponent(ConstraintComponent):
     invalid_parameter_names = {'this', 'shapesGraph', 'currentShape', 'path', 'PATH', 'value'}
+
+    shacl_constraint_component = SH_ConstraintComponent
 
     def __init__(self, constraint, shape: 'Shape', validator):
         """
@@ -72,11 +74,6 @@ class BoundShapeJSValidatorComponent(ConstraintComponent):
     @classmethod
     def constraint_name(cls):
         return "ConstraintComponent"
-
-    @classmethod
-    def shacl_constraint_class(cls):
-        # TODO:coverage: this is never used for this constraint?
-        return SH_ConstraintComponent
 
     def make_generic_messages(self, datagraph: GraphLike, focus_node, value_node) -> List[Literal]:
         return [Literal("Parameterised Javascript Function generated constraint validation reports.")]

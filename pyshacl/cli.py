@@ -38,7 +38,7 @@ parser.add_argument(
     dest='ont',
     action='store',
     nargs='?',
-    help='A file path or URL to a docucument containing extra ontological information to mix into ' 'the data graph.',
+    help='A file path or URL to a document containing extra ontological information to mix into ' 'the data graph.',
 )
 parser.add_argument(
     '-i',
@@ -59,6 +59,7 @@ parser.add_argument(
          'Shapes Graph before before validating the Data Graph.',
 )
 parser.add_argument(
+    '-im',
     '--imports',
     dest='imports',
     action='store_true',
@@ -81,7 +82,23 @@ parser.add_argument(
     default=False,
     help='Enable features from the SHACL-JS Specification.',
 )
-parser.add_argument('--abort', dest='abort', action='store_true', default=False, help='Abort on first error.')
+parser.add_argument(
+    '-it',
+    '--iterate-rules',
+    dest='iterate_rules',
+    action='store_true',
+    default=False,
+    help="Run Shape's SHACL Rules iteratively until the data_graph reaches a steady state.",
+)
+parser.add_argument('--abort', dest='abort', action='store_true', default=False, help='Abort on first invalid data.')
+parser.add_argument(
+    '-w',
+    '--allow-warnings',
+    dest='allow_warnings',
+    action='store_true',
+    default=False,
+    help='Shapes marked with severity of Warning or Info will not cause result to be invalid.',
+)
 parser.add_argument(
     '-d', '--debug', dest='debug', action='store_true', default=False, help='Output additional runtime messages.'
 )
@@ -174,8 +191,15 @@ def main():
         validator_kwargs['advanced'] = True
     if args.js:
         validator_kwargs['js'] = True
+    if args.iterate_rules:
+        if not args.advanced:
+            sys.stderr.write("Iterate-Rules option only works when you enable Advanced Mode.\n")
+        else:
+            validator_kwargs['iterate_rules'] = True
     if args.abort:
-        validator_kwargs['abort_on_error'] = True
+        validator_kwargs['abort_on_first'] = True
+    if args.allow_warnings:
+        validator_kwargs['allow_warnings'] = True
     if args.shacl_file_format:
         f = args.shacl_file_format
         if f != "auto":
@@ -214,7 +238,9 @@ def main():
         import traceback
 
         traceback.print_tb(re.__traceback__)
-        sys.stderr.write("\n\nValidator encountered a Runtime Error. Please report this to the PySHACL issue tracker.")
+        sys.stderr.write(
+            "\n\nValidator encountered a Runtime Error. Please report this to the PySHACL issue tracker.\n"
+        )
         sys.exit(2)
 
     if args.expected_output is not None:

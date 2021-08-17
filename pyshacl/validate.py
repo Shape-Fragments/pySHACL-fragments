@@ -69,7 +69,9 @@ class Validator(object):
         options_dict.setdefault('inference', 'none')
         options_dict.setdefault('inplace', False)
         options_dict.setdefault('use_js', False)
-        options_dict.setdefault('abort_on_error', False)
+        options_dict.setdefault('iterate_rules', False)
+        options_dict.setdefault('abort_on_first', False)
+        options_dict.setdefault('allow_warnings', False)
         if 'logger' not in options_dict:
             options_dict['logger'] = logging.getLogger(__name__)
 
@@ -103,7 +105,7 @@ class Validator(object):
             if isinstance(e, ReportableRuntimeError):
                 raise e
             raise ReportableRuntimeError(
-                "Error during creation of OWL-RL Deductive Closure\n" "{}".format(str(e.args[0]))
+                "Error during creation of OWL-RL Deductive Closure\n{}".format(str(e.args[0]))
             )
         if isinstance(target_graph, (rdflib.Dataset, rdflib.ConjunctiveGraph)):
             named_graphs = [
@@ -119,7 +121,7 @@ class Validator(object):
                 inferencer.expand(g)
         except Exception as e:  # pragma: no cover
             logger.error("Error while running OWL-RL Deductive Closure")
-            raise ReportableRuntimeError("Error while running OWL-RL Deductive Closure\n" "{}".format(str(e.args[0])))
+            raise ReportableRuntimeError("Error while running OWL-RL Deductive Closure\n{}".format(str(e.args[0])))
 
     @classmethod
     def create_validation_report(cls, sg, conforms: bool, results: List[Tuple]):
@@ -175,9 +177,9 @@ class Validator(object):
         self.inplace = options['inplace']
         if not isinstance(data_graph, rdflib.Graph):
             raise RuntimeError("data_graph must be a rdflib Graph object")
-        self.data_graph = data_graph
+        self.data_graph = data_graph  # type: GraphLike
         self._target_graph = None
-        self.ont_graph = ont_graph
+        self.ont_graph = ont_graph  # type: Optional[GraphLike]
         self.data_graph_is_multigraph = isinstance(self.data_graph, (rdflib.Dataset, rdflib.ConjunctiveGraph))
         if self.ont_graph is not None and isinstance(self.ont_graph, (rdflib.Dataset, rdflib.ConjunctiveGraph)):
             self.ont_graph.default_union = True
@@ -185,7 +187,7 @@ class Validator(object):
         if shacl_graph is None:
             shacl_graph = clone_graph(data_graph, identifier='shacl')
         assert isinstance(shacl_graph, rdflib.Graph), "shacl_graph must be a rdflib Graph object"
-        self.shacl_graph = ShapesGraph(shacl_graph, self.logger)
+        self.shacl_graph = ShapesGraph(shacl_graph, self.logger)  # type: ShapesGraph
 
         if options['use_js']:
             is_js_installed = check_extra_installed('js')
@@ -221,10 +223,13 @@ class Validator(object):
             self._target_graph = the_target_graph
 
         shapes = self.shacl_graph.shapes  # This property getter triggers shapes harvest.
-
+        iterate_rules = self.options.get("iterate_rules", False)
         if self.options['advanced']:
             target_types = gather_target_types(self.shacl_graph)
-            advanced = {'functions': gather_functions(self.shacl_graph), 'rules': gather_rules(self.shacl_graph)}
+            advanced = {
+                'functions': gather_functions(self.shacl_graph),
+                'rules': gather_rules(self.shacl_graph, iterate_rules=iterate_rules),
+            }
             for s in shapes:
                 s.set_advanced(True)
             apply_target_types(target_types)
@@ -240,23 +245,33 @@ class Validator(object):
         else:
             named_graphs = [the_target_graph]
         reports = []
+        abort_on_first: bool = bool(self.options.get("abort_on_first", False))
+        allow_warnings: bool = bool(self.options.get("allow_warnings", False))
         non_conformant = False
         subgraph = set()
-
+        aborted = False
         for g in named_graphs:
             if advanced:
                 apply_functions(advanced['functions'], g)
-                apply_rules(advanced['rules'], g)
-            for s in shapes:
-                _is_conform, _reports, _subgraph = s.validate(g)
-                # _subgraphs will contain neighborhoods for each conforming focus node
-                # we will gather these neighborhoods in subgraph and later return them:
-                for fn in _subgraph:
-                    subgraph.update(_subgraph[fn])
-                non_conformant = non_conformant or (not _is_conform)
-                reports.extend(_reports)
-            if advanced:
-                unapply_functions(advanced['functions'], g)
+                apply_rules(advanced['rules'], g, iterate=iterate_rules)
+            try:
+                for s in shapes:
+                    _is_conform, _reports, _subgraph = s.validate(g, abort_on_first=abort_on_first,
+                                                                  allow_warnings=allow_warnings)
+                    # _subgraphs will contain neighborhoods for each conforming focus node
+                    # we will gather these neighborhoods in subgraph and later return them:
+                    for fn in _subgraph:
+                        subgraph.update(_subgraph[fn])
+                    non_conformant = non_conformant or (not _is_conform)
+                    reports.extend(_reports)
+                    if abort_on_first and non_conformant:
+                        aborted = True
+                        break
+                if aborted:
+                    break
+            finally:
+                if advanced:
+                    unapply_functions(advanced['functions'], g)
         v_report, v_text = self.create_validation_report(self.shacl_graph, not non_conformant, reports)
         return (not non_conformant), v_report, v_text, subgraph
 
@@ -321,7 +336,8 @@ def validate(
     advanced: Optional[bool] = False,
     inference: Optional[str] = None,
     inplace: Optional[bool] = False,
-    abort_on_error: Optional[bool] = False,
+    abort_on_first: Optional[bool] = False,
+    allow_warnings: Optional[bool] = False,
     **kwargs,
 ):
     """
@@ -340,8 +356,10 @@ def validate(
     :type inference: str | None
     :param inplace: If this is enabled, do not clone the datagraph, manipulate it inplace
     :type inplace: bool
-    :param abort_on_error:
-    :type abort_on_error: bool | None
+    :param abort_on_first: Stop evaluating constraints after first violation is found
+    :type abort_on_first: bool | None
+    :param allow_warnings: Shapes marked with severity of sh:Warning or sh:Info will not cause result to be invalid.
+    :type allow_warnings: bool | None
     :param kwargs:
     :return:
     """
@@ -376,6 +394,11 @@ def validate(
         )
         rdflib_bool_unpatch()
     use_js = kwargs.pop('js', None)
+    iterate_rules = kwargs.pop('iterate_rules', False)
+    if "abort_on_error" in kwargs:
+        log.warning("Usage of abort_on_error is deprecated. Use abort_on_first instead.")
+        ae = kwargs.pop("abort_on_error")
+        abort_on_first = bool(abort_on_first) or bool(ae)
     validator = None
     try:
         validator = Validator(
@@ -385,8 +408,10 @@ def validate(
             options={
                 'inference': inference,
                 'inplace': inplace,
-                'abort_on_error': abort_on_error,
+                'abort_on_first': abort_on_first,
+                'allow_warnings': allow_warnings,
                 'advanced': advanced,
+                'iterate_rules': iterate_rules,
                 'use_js': use_js,
                 'logger': log,
             },
@@ -570,11 +595,11 @@ def compare_inferencing_reports(data_graph: GraphLike, expected_graph: GraphLike
 
 def check_dash_result(validator: Validator, report_graph: GraphLike, expected_result_graph: GraphLike):
     DASH = rdflib.namespace.Namespace('http://datashapes.org/dash#')
-    DASH_GraphValidationTestCase = DASH.term('GraphValidationTestCase')
-    DASH_InferencingTestCase = DASH.term('InferencingTestCase')
-    DASH_FunctionTestCase = DASH.term('FunctionTestCase')
-    DASH_expectedResult = DASH.term('expectedResult')
-    DASH_expression = DASH.term('expression')
+    DASH_GraphValidationTestCase = DASH.GraphValidationTestCase
+    DASH_InferencingTestCase = DASH.InferencingTestCase
+    DASH_FunctionTestCase = DASH.FunctionTestCase
+    DASH_expectedResult = DASH.expectedResult
+    DASH_expression = DASH.expression
     was_default_union = None
     if isinstance(expected_result_graph, (rdflib.ConjunctiveGraph, rdflib.Dataset)):
         was_default_union = expected_result_graph.default_union
