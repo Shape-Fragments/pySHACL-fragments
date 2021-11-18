@@ -19,7 +19,6 @@ from pyshacl.errors import (
 from pyshacl.pytypes import GraphLike
 from pyshacl.rdfutil import stringify_node
 
-
 SH_PropertyConstraintComponent = SH.PropertyConstraintComponent
 SH_NodeConstraintComponent = SH.NodeConstraintComponent
 
@@ -96,7 +95,8 @@ class PropertyConstraintComponent(ConstraintComponent):
 
             for f, value_nodes in focus_value_nodes.items():
                 for v in value_nodes:
-                    _is_conform, _r, _value_node_subgraph = prop_shape.validate(target_graph, focus=v, _evaluation_path=_evaluation_path[:])
+                    _is_conform, _r, _value_node_subgraph = prop_shape.validate(target_graph, focus=v,
+                                                                                _evaluation_path=_evaluation_path[:])
                     # sanity check: _value_node_subgraph contains at most subgraphs for v
                     assert (not _value_node_subgraph) or (len(_value_node_subgraph) == 1 and v in _value_node_subgraph)
                     # add the neighborhoods of conforming value nodes to the neighborhood of f
@@ -176,6 +176,7 @@ class NodeConstraintComponent(ConstraintComponent):
         """
         reports = []
         non_conformant = False
+        subgraphs = {f: set() for f in focus_value_nodes}
         shape = self.shape
         potentially_recursive = self.recursion_triggers(_evaluation_path)
 
@@ -183,6 +184,7 @@ class NodeConstraintComponent(ConstraintComponent):
             nonlocal self, target_graph, shape, focus_value_nodes, _evaluation_path
             _reports = []
             _non_conformant = False
+            _subgraphs = {f: set() for f in focus_value_nodes}
             node_shape = shape.get_other_shape(node_shape)
             if node_shape in potentially_recursive:
                 warn(ShapeRecursionWarning(_evaluation_path))
@@ -193,19 +195,38 @@ class NodeConstraintComponent(ConstraintComponent):
                 )
             for f, value_nodes in focus_value_nodes.items():
                 for v in value_nodes:
-                    _is_conform, _r = node_shape.validate(target_graph, focus=v, _evaluation_path=_evaluation_path[:])
+                    _is_conform, _r, _sg = node_shape.validate(
+                        target_graph, focus=v, _evaluation_path=_evaluation_path[:])
                     # ignore the fails from the node, create our own fail
                     if (not _is_conform) or len(_r) > 0:
+                        # f is non-conformant, meaning it should not be a key in _subgraphs
+                        _subgraphs.pop(f)
+
                         _non_conformant = True
                         rept = self.make_v_result(target_graph, f, value_node=v)
                         _reports.append(rept)
-            return _non_conformant, _reports
+                    else:
+                        # if v conforms to the node shape,
+                        # add the path from f to v to f's neighborhood:
+                        _subgraphs[f].update(focus_value_nodes[f][v])
+                        # ...and add the neighborhood of v and the node shape
+                        _subgraphs[f].update(_sg[v])
+            return _non_conformant, _reports, _subgraphs
 
         for n_shape in self.node_shapes:
-            _nc, _r = _evaluate_node_shape(n_shape)
+            _nc, _r, _sg = _evaluate_node_shape(n_shape)
             non_conformant = non_conformant or _nc
             reports.extend(_r)
-        return (not non_conformant), reports
+            # keep only focus nodes which satisfy *all* node shapes:
+            to_delete = set()
+            for f in subgraphs:
+                if f not in _sg:
+                    to_delete.add(f)
+                else:
+                    subgraphs[f].update(_sg[f])
+            for f in to_delete:
+                subgraphs.pop(f)
+        return (not non_conformant), reports, subgraphs
 
 
 class QualifiedValueShapeConstraintComponent(ConstraintComponent):
