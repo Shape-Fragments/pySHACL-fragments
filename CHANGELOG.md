@@ -4,6 +4,106 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Python PEP 440 Versioning](https://www.python.org/dev/peps/pep-0440/).
 
+## [Unreleased]
+
+- Nothing yet
+
+## [0.17.2] - 2021-10-25
+
+## Fixes
+- SPARQL queries with words "values", "minus", or "service" in its comments no longer incorrectly throw an exception.
+
+## Changed
+- Switched from Travis to Drone for CI testing
+
+## Added
+- New Table output type for commandline tool. Thanks @nicholascar
+
+
+## [0.17.1] - 2021-10-11
+
+## Fixes
+- Handle transitive subclasses when evaluating sh:targetClass - @gtfierro
+  - Fixes #96
+- Improve detection of RDF/XML files when loading unknown content
+  - Fixes #98
+- Imported type stubs and resolved ALL MyPy issues! (this was a big effort)
+- Logic fixes in the dataset loader (thanks to inconsistencies exposed by MyPy)
+
+## Changed
+- Add special cases to sh:dataclass constraint, when the given shape uses rdfs:Literal or rdfs:Dataclass as the dataclass to match on
+  - Fixes #71
+
+## Added
+- Add datashapes.org/schema as a built-in graph
+  - Fixes #98
+- Added ability to pass a TextIO or TextIOWrapper object into the dataset loader
+
+## [0.17.0.post1] - 2021-09-15
+
+## Notice
+This version of PySHACL **requires RDFLib 6.0.0_**. 
+As a direct result of that, this version of PySHACL **also requires Python v3.7**.
+
+### Changed
+- Lazy-load OWL-RL module to avoid owl-rl import warnings when not required
+
+
+## [0.17.0] - 2021-09-13
+
+## Notice
+This version of PySHACL **requires RDFLib 6.0.0_**. 
+As a direct result of that, this version of PySHACL **also requires Python v3.7**.
+
+### Changed
+- Upped RDFLib min version to 6.0.0 in order to get built-in json-ld
+- Upped OWL-RL to min version 5.2.3 in order to remove json-ld dependency
+- Made min python version v3.7
+- Change black config to use python 3.7 compat code
+- Re-black and isort all source files
+
+
+## [0.16.2] - 2021-09-13
+
+## Notice
+This is the **last version of PySHACL to support RDFLib 5.0.0**, subsequent releases of PySHACL will depend on RDFLib v6.0.0.
+As a direct result of that, this is also the **last version of PySHACL to support Python v3.6**.
+
+### Changed
+- Pinned JSON-ld dep to <6.0 to avoid the tombstone release (so not to force rdflib 6.0)
+- Updated minimum Black version to 21.8b0 to fix a black bug
+- Re-black and isort all source files
+
+### Fixed
+- Fixed detection of import error when loading json-ld module in RDF loader
+- Fixed Black bug with new version of black
+
+
+## [0.16.1] - 2021-08-20
+
+### Added
+- [ExpressionConstraintComponent](https://www.w3.org/TR/shacl-af/#ExpressionConstraintComponent) is implemented!
+  - Use your previously defined SHACL Functions to express complex constraints
+  - Added DASH-tests for ExpressionConstraintComponent
+  - Added advanced tests for ExpressionConstraintComponent, SHACLRules, and SHACLFunctions.
+- New Advanced features example, showcasing ExpressionConstraint and others features
+
+### Changed
+- Allow sh:message to be attached to an expression block, without breaking its functionality
+- A SHACL Function within a SHACL Expression now must be a list-valued property.
+- Refactored node-expression and path-expression methods to be common and reusable code
+- Re-black and isort all source files
+
+
+## [0.16.0] - 2021-08-19
+
+### Changed
+- `sh:class` Constraint now applies transitively.
+  - This means it will follow `rdfs:subClassOf` relationships right to the top of the hierarchy.
+  - Be careful with this, could lead to recursion or infinite loops!
+  - This requires a big version number bump because it's technically a breaking change.
+  - Fixes #87, thanks `@gtfierro`
+
 ## [0.15.0] - 2021-07-20
 
 ### Fixed
@@ -763,7 +863,14 @@ just leaves the files open. Now it is up to the command-line client to close the
 
 - Initial version, limited functionality
 
-[Unreleased]: https://github.com/RDFLib/pySHACL/compare/v0.15.0...HEAD
+[Unreleased]: https://github.com/RDFLib/pySHACL/compare/v0.17.2...HEAD
+[0.17.2]: https://github.com/RDFLib/pySHACL/compare/v0.17.1...v0.17.2
+[0.17.1]: https://github.com/RDFLib/pySHACL/compare/v0.17.0.post1...v0.17.1
+[0.17.0.post1]: https://github.com/RDFLib/pySHACL/compare/v0.17.0...v0.17.0.post1
+[0.17.0]: https://github.com/RDFLib/pySHACL/compare/v0.16.2...v0.17.0
+[0.16.2]: https://github.com/RDFLib/pySHACL/compare/v0.16.1...v0.16.2
+[0.16.1]: https://github.com/RDFLib/pySHACL/compare/v0.16.0...v0.16.1
+[0.16.0]: https://github.com/RDFLib/pySHACL/compare/v0.15.0...v0.16.0
 [0.15.0]: https://github.com/RDFLib/pySHACL/compare/v0.14.5...v0.15.0
 [0.14.5]: https://github.com/RDFLib/pySHACL/compare/v0.14.4...v0.14.5
 [0.14.4]: https://github.com/RDFLib/pySHACL/compare/v0.14.3...v0.14.4

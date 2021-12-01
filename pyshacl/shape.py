@@ -6,23 +6,20 @@ import sys
 from decimal import Decimal
 from typing import TYPE_CHECKING, List, Optional, Set, Tuple, Type, Union
 
-from rdflib import RDF, BNode, Literal, URIRef
+from rdflib import BNode, Literal, URIRef
 
 from .consts import (
     RDF_type,
     RDFS_Class,
     RDFS_subClassOf,
-    SH_alternativePath,
     SH_deactivated,
     SH_description,
     SH_Info,
-    SH_inversePath,
     SH_jsFunctionName,
     SH_JSTarget,
     SH_JSTargetType,
     SH_message,
     SH_name,
-    SH_oneOrMorePath,
     SH_order,
     SH_property,
     SH_resultSeverity,
@@ -37,11 +34,11 @@ from .consts import (
     SH_targetSubjectsOf,
     SH_Violation,
     SH_Warning,
-    SH_zeroOrMorePath,
-    SH_zeroOrOnePath,
+    SH_inversePath,
 )
 from .errors import ConstraintLoadError, ConstraintLoadWarning, ReportableRuntimeError, ShapeLoadError
 from .helper import get_query_helper_cls
+from .helper.expression_helper import value_nodes_from_path
 from .pytypes import GraphLike
 
 if TYPE_CHECKING:
@@ -173,7 +170,23 @@ class Shape(object):
             name = next(iter(self.name))
         except Exception:
             name = str(self.node)
-        return "<Shape {}>".format(name)
+        if self.is_property_shape:
+            kind = "PropertyShape"
+        else:
+            kind = "NodeShape"
+        return "<{} {}>".format(kind, name)
+
+    def __repr__(self):
+        if self.is_property_shape:
+            p = "True"
+        else:
+            p = "False"
+        names = list(self.name)
+        if len(names):
+            return "<Shape {} p={} node={}>".format(",".join(names), p, str(self.node))
+        else:
+            return "<Shape p={} node={}>".format(p, str(self.node))
+        # return super(Shape, self).__repr__()
 
     @property
     def description(self):
@@ -489,6 +502,7 @@ class Shape(object):
 
         raise NotImplementedError("That path method to get value nodes of property shapes is not yet implemented.")
 
+
     def value_nodes(self, target_graph, focus):
         """
         For each focus node, you can get a set of value nodes.
@@ -525,7 +539,7 @@ class Shape(object):
                 path = mandatory_param.path()
                 assert isinstance(path, URIRef)
                 found_vals = set(self.sg.objects(self.node, path))
-                # found_vals = self._value_nodes_from_path(self.node, mandatory_param.path(), self.sg.graph)
+                # found_vals = value_nodes_from_path(self.node, mandatory_param.path(), self.sg.graph)
                 found_all_mandatory = found_all_mandatory and bool(len(found_vals) > 0)
             if found_all_mandatory:
                 applicable_custom_constraints.add(c)
@@ -575,13 +589,19 @@ class Shape(object):
             setattr(module, 'CONSTRAINT_PARAMS', (ALL_CONSTRAINT_PARAMETERS, CONSTRAINT_PARAMETERS_MAP))
             CONSTRAINT_PARAMETERS = ALL_CONSTRAINT_PARAMETERS
             PARAMETER_MAP = CONSTRAINT_PARAMETERS_MAP
-        if self.sg.js_enabled:
+        if self.sg.js_enabled or self._advanced:
             search_parameters = CONSTRAINT_PARAMETERS.copy()
             constraint_map = PARAMETER_MAP.copy()
-            from pyshacl.extras.js.constraint import JSConstraint, SH_js
+            if self._advanced:
+                from pyshacl.constraints.advanced import ExpressionConstraint, SH_expression
 
-            search_parameters.append(SH_js)
-            constraint_map[SH_js] = JSConstraint
+                search_parameters.append(SH_expression)
+                constraint_map[SH_expression] = ExpressionConstraint
+            if self.sg.js_enabled:
+                from pyshacl.extras.js.constraint import JSConstraint, SH_js
+
+                search_parameters.append(SH_js)
+                constraint_map[SH_js] = JSConstraint
         else:
             search_parameters = CONSTRAINT_PARAMETERS
             constraint_map = PARAMETER_MAP
@@ -601,6 +621,7 @@ class Shape(object):
         has_forall_constraint = False
         run_count = 0
         _evaluation_path.append(self)
+        # print(_evaluation_path)
         constraint_components = [constraint_map[p] for p in iter(parameters)]
         for constraint_component in constraint_components:  # type: Type[ConstraintComponent]
             if constraint_component in done_constraints:
